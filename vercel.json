@@ -11,6 +11,10 @@
       "src": "/",
       "dest": "index.js"
     },
+{
+      "src": "/public/*",
+      "dest": "Public"
+    },
     {
       "src": "/proxy",
       "dest": "index.js"
