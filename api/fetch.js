@@ -1,10 +1,14 @@
-async function getEpisodeServers(episodeId) {
+export default async function handler(req, res) {
+  const { episodeId } = req.query;
+
+  if (!episodeId) {
+    return res.status(400).json({ error: "Missing episodeId" });
+  }
+
   try {
-    const res = await fetch(
-      `https://hianime.to/ajax/v2/episode/servers?episodeId=${episodeId}`,
+    const response = await fetch(
+      `https://example.com/ajax/v2/episode/servers?episodeId=${episodeId}`,
       {
-        method: "GET",
-        credentials: "include", // important for cookies
         headers: {
           "X-Requested-With": "XMLHttpRequest",
           "Accept": "application/json"
@@ -12,40 +16,16 @@ async function getEpisodeServers(episodeId) {
       }
     );
 
-    if (!res.ok) throw new Error("Failed to fetch servers");
+    if (!response.ok) {
+      return res.status(response.status).json({ error: "Upstream error" });
+    }
 
-    const data = await res.json();
-    console.log("Servers:", data);
-    return data;
+    const data = await response.json();
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    return res.status(200).json(data);
+
   } catch (err) {
-    console.error(err);
+    return res.status(500).json({ error: err.message });
   }
 }
-
-async function getEpisodeSources(id) {
-  try {
-    const res = await fetch(
-      `https://hianime.to/ajax/v2/episode/sources?id=${id}`,
-      {
-        method: "GET",
-        credentials: "include",
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-          "Accept": "application/json"
-        }
-      }
-    );
-
-    if (!res.ok) throw new Error("Failed to fetch sources");
-
-    const data = await res.json();
-    console.log("Sources:", data);
-    return data;
-  } catch (err) {
-    console.error(err);
-  }
-}
-
-// Example usage
-getEpisodeServers(641755);
-getEpisodeSources(641755);
