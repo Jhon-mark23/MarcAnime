@@ -1,4 +1,4 @@
-{
+ {
   "version": 2,
   "builds": [
     {
@@ -7,6 +7,42 @@
     }
   ],
   "routes": [
+    {
+      "src": "/",
+      "dest": "index.js"
+    },
+    {
+      "src": "/proxy",
+      "dest": "index.js"
+    },
+    {
+      "src": "/proxy/(.*)",
+      "dest": "index.js"
+    },
+    {
+      "src": "/resource",
+      "dest": "index.js"
+    },
+    {
+      "src": "/resource/(.*)",
+      "dest": "index.js"
+    },
+    {
+      "src": "/video",
+      "dest": "index.js"
+    },
+    {
+      "src": "/video/(.*)",
+      "dest": "index.js"
+    },
+    {
+      "src": "/api",
+      "dest": "index.js"
+    },
+    {
+      "src": "/api/(.*)",
+      "dest": "index.js"
+    },
     {
       "src": "/(.*)",
       "dest": "index.js"
@@ -26,9 +62,30 @@
         },
         {
           "key": "Access-Control-Allow-Headers",
-          "value": "*"
+          "value": "Origin, X-Requested-With, Content-Type, Accept, Range, Referer"
+        },
+        {
+          "key": "Access-Control-Expose-Headers",
+          "value": "Content-Length, Content-Range, Content-Type"
+        },
+        {
+          "key": "Cross-Origin-Embedder-Policy",
+          "value": "unsafe-none"
+        },
+        {
+          "key": "Cross-Origin-Opener-Policy",
+          "value": "unsafe-none"
+        },
+        {
+          "key": "Cross-Origin-Resource-Policy",
+          "value": "cross-origin"
         }
       ]
     }
-  ]
+  ],
+  "functions": {
+    "index.js": {
+      "maxDuration": 10
+    }
+  }
 }
