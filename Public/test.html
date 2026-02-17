@@ -1,40 +1,288 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MegaCloud Player</title>
-<style>
-  body {
-    margin: 0;
-    background: #000;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-  }
-  iframe {
-    width: 100%;
-    max-width: 1000px;
-    height: 90vh;
-    border: none;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HiAnime Iframe Fetcher</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+        
+        h1 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 28px;
+        }
+        
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .input-group input {
+            flex: 1;
+            padding: 12px 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+            min-width: 250px;
+        }
+        
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        
+        button {
+            padding: 12px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+        
+        button:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+        
+        button:active {
+            transform: translateY(0);
+        }
+        
+        .result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 10px;
+            border-left: 4px solid #667eea;
+            word-break: break-all;
+        }
+        
+        .result a {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        
+        .result a:hover {
+            text-decoration: underline;
+        }
+        
+        .iframe-container {
+            position: relative;
+            width: 100%;
+            margin-top: 30px;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        
+        iframe {
+            width: 100%;
+            height: 500px;
+            border: none;
+            background: #000;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            display: none;
+        }
+        
+        .loading.active {
+            display: block;
+        }
+        
+        .loading::after {
+            content: '';
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            margin-left: 10px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            vertical-align: middle;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error {
+            color: #e53e3e;
+            padding: 15px;
+            background: #fed7d7;
+            border-radius: 10px;
+            margin-top: 20px;
+            display: none;
+        }
+        
+        .error.active {
+            display: block;
+        }
+        
+        .label {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 5px;
+        }
+        
+        .episode-input {
+            margin-bottom: 20px;
+        }
+        
+        .episode-input label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: 500;
+        }
+    </style>
 </head>
 <body>
-<!--<iframe
-  src="https://marc-anime.vercel.app/api/proxy?url=https://megacloud.blog/embed-2/v3/e-1/5iw4w6QUxVz8?k=1&autoPlay=1&oa=0&asi=1"
-  width="100%"
-  height="600"
-  allowfullscreen
-></iframe>-->
-<iframe src="https://megacloud.blog/embed-2/v3/e-1/5iw4w6QUxVz8?k=1&autoPlay=1&oa=0&asi=1"></iframe>
-<!--<iframe 
-  src="https://megacloud.blog/embed-2/v3/e-1/5iw4w6QUxVz8?k=1&autoPlay=1&oa=0&asi=1"
-  allow="autoplay; fullscreen"
-  allowfullscreen
-  referrerpolicy="origin"
-></iframe>-->
+    <div class="container">
+        <div class="card">
+            <h1>🎬 HiAnime Iframe Fetcher</h1>
+            
+            <div class="episode-input">
+                <label>Episode ID (from URL)</label>
+                <div class="input-group">
+                    <input type="text" id="episodeId" placeholder="Enter episode ID (e.g., 641755)" value="641755">
+                    <button onclick="fetchIframe()">Fetch Iframe</button>
+                </div>
+                <small style="color: #666;">Example: https://hianime.to/watch/bleach-806?ep=13795 → ID is 641755</small>
+            </div>
+            
+            <div id="loading" class="loading">Fetching iframe data</div>
+            <div id="error" class="error"></div>
+            
+            <div id="result" class="result" style="display: none;">
+                <div class="label">📺 Iframe URL:</div>
+                <a id="iframeUrl" href="#" target="_blank"></a>
+                <button onclick="copyToClipboard()" style="margin-top: 10px; padding: 8px 15px; font-size: 14px;">Copy URL</button>
+            </div>
+            
+            <div id="iframeContainer" class="iframe-container" style="display: none;">
+                <iframe id="videoIframe" allowfullscreen allow="autoplay; encrypted-media; picture-in-picture"></iframe>
+            </div>
+        </div>
+    </div>
 
+    <script>
+        async function fetchIframe() {
+            const episodeId = document.getElementById('episodeId').value.trim();
+            
+            if (!episodeId) {
+                showError('Please enter an episode ID');
+                return;
+            }
+            
+            // Show loading, hide previous results and errors
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('error').classList.remove('active');
+            document.getElementById('result').style.display = 'none';
+            document.getElementById('iframeContainer').style.display = 'none';
+            
+            try {
+                // Fetch the iframe data from HiAnime
+                const response = await fetch('https://hianime.to/ajax/v2/episode/sources?id=' + episodeId, {
+                    headers: {
+                        'Accept': '*/*',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'User-Agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Mobile Safari/537.36',
+                        'Referer': 'https://hianime.to/watch/bleach-806?ep=13795'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                if (data.type === 'iframe' && data.link) {
+                    // Display the iframe URL
+                    const iframeUrl = data.link;
+                    document.getElementById('iframeUrl').href = iframeUrl;
+                    document.getElementById('iframeUrl').textContent = iframeUrl;
+                    document.getElementById('result').style.display = 'block';
+                    
+                    // Set the iframe source
+                    document.getElementById('videoIframe').src = iframeUrl;
+                    document.getElementById('iframeContainer').style.display = 'block';
+                    
+                    // Log server info for debugging
+                    console.log('Server:', data.server);
+                } else {
+                    throw new Error('No iframe URL found in response');
+                }
+                
+            } catch (error) {
+                showError('Error fetching iframe: ' + error.message);
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+            }
+        }
+        
+        function showError(message) {
+            const errorEl = document.getElementById('error');
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+        }
+        
+        function copyToClipboard() {
+            const url = document.getElementById('iframeUrl').href;
+            navigator.clipboard.writeText(url).then(() => {
+                alert('URL copied to clipboard!');
+            }).catch(() => {
+                alert('Failed to copy URL');
+            });
+        }
+        
+        // Auto-fetch on page load if there's an ID
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const episodeId = urlParams.get('id');
+            if (episodeId) {
+                document.getElementById('episodeId').value = episodeId;
+                fetchIframe();
+            }
+        });
+    </script>
 </body>
 </html>
