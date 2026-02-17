@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
-  <title>MarcAnime · Watch Anime</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover" />
+  <title>ZenStream · Mobile HLS</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
   <!-- Video.js for HLS support -->
@@ -13,20 +13,23 @@
       margin: 0;
       padding: 0;
       box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
     }
 
     body {
       background: #0a0d14;
       color: #e5eaff;
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-      line-height: 1.5;
+      line-height: 1.4;
       min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom);
     }
 
+    /* Mobile-first header */
     header {
       background: rgba(18, 26, 40, 0.98);
       backdrop-filter: blur(10px);
-      padding: 0.8rem 1rem;
+      padding: 0.5rem 0.75rem;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -35,6 +38,7 @@
       top: 0;
       z-index: 100;
       gap: 0.5rem;
+      height: 56px;
     }
 
     header a {
@@ -43,16 +47,19 @@
       font-weight: 500;
       display: flex;
       align-items: center;
-      gap: 6px;
+      justify-content: center;
+      gap: 4px;
       padding: 8px 12px;
       background: #1a253c;
       border-radius: 40px;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       white-space: nowrap;
+      min-width: 44px;
+      min-height: 44px;
     }
 
     #anime-title {
-      font-size: 1rem;
+      font-size: 0.9rem;
       font-weight: 600;
       text-transform: capitalize;
       background: linear-gradient(135deg, #fff, #9ab3ff);
@@ -61,23 +68,24 @@
       overflow: hidden;
       text-overflow: ellipsis;
       white-space: nowrap;
-      max-width: 40vw;
+      flex: 1;
+      text-align: center;
     }
 
     .container {
       max-width: 1200px;
       margin: 0 auto;
-      padding: 1rem;
+      padding: 0.75rem;
     }
 
-    /* Player section with HLS */
+    /* Player section - HLS only */
     .player-wrapper {
       background: #000;
-      border-radius: 16px;
+      border-radius: 12px;
       overflow: hidden;
-      box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.8);
+      box-shadow: 0 8px 16px -4px rgba(0, 0, 0, 0.8);
       border: 1px solid #253553;
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
       aspect-ratio: 16/9;
       position: relative;
     }
@@ -87,32 +95,37 @@
       height: 100%;
     }
 
-    .vjs-fullscreen {
-      background: #000;
+    /* Custom video controls for mobile */
+    .vjs-default-skin .vjs-big-play-button {
+      width: 60px !important;
+      height: 60px !important;
+      line-height: 60px !important;
+      border-radius: 50% !important;
+      left: 50% !important;
+      top: 50% !important;
+      transform: translate(-50%, -50%) !important;
+      background: rgba(61, 99, 255, 0.9) !important;
+      border: none !important;
     }
 
-    /* Force landscape orientation in fullscreen on mobile */
-    .vjs-fullscreen::before {
-      content: "";
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: #000;
-      z-index: 999999;
+    .vjs-default-skin .vjs-progress-control {
+      height: 8px !important;
     }
 
-    /* Skip popup */
+    .vjs-default-skin .vjs-volume-panel {
+      margin-right: 8px !important;
+    }
+
+    /* Skip popup - mobile optimized */
     .skip-popup {
       position: absolute;
-      bottom: 80px;
-      right: 20px;
+      bottom: 70px;
+      right: 12px;
       background: rgba(61, 99, 255, 0.95);
       backdrop-filter: blur(10px);
       color: white;
-      padding: 15px 25px;
-      border-radius: 50px;
+      padding: 14px 20px;
+      border-radius: 40px;
       font-weight: 600;
       cursor: pointer;
       z-index: 1000;
@@ -121,8 +134,10 @@
       animation: slideIn 0.3s ease;
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       font-size: 1rem;
+      min-width: 140px;
+      min-height: 52px;
       pointer-events: auto;
     }
 
@@ -158,29 +173,42 @@
       background: #0a0d14;
       color: #8aa3cc;
       text-align: center;
-      padding: 2rem;
+      padding: 1.5rem;
       z-index: 10;
     }
 
     .player-fallback i {
-      font-size: 4rem;
+      font-size: 3rem;
       color: #3d63ff;
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
     }
 
     .player-fallback.hidden {
       display: none;
     }
 
+    .player-fallback button {
+      min-width: 120px;
+      min-height: 44px;
+      background: #3d63ff;
+      border: none;
+      border-radius: 40px;
+      color: white;
+      font-weight: 600;
+      margin-top: 1rem;
+      padding: 0 1.5rem;
+    }
+
+    /* Episode header - mobile */
     .episode-header {
       display: flex;
       flex-direction: column;
-      gap: 0.8rem;
-      margin-bottom: 1rem;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
     }
 
     #ep-title {
-      font-size: 1.3rem;
+      font-size: 1.1rem;
       font-weight: 600;
       line-height: 1.3;
     }
@@ -197,7 +225,7 @@
       color: #fff;
       border: 1px solid #2e426b;
       border-radius: 40px;
-      padding: 0.8rem 0.5rem;
+      padding: 0.7rem 0.25rem;
       cursor: pointer;
       font-size: 0.9rem;
       font-weight: 500;
@@ -206,6 +234,7 @@
       justify-content: center;
       gap: 6px;
       transition: 0.2s;
+      min-height: 44px;
     }
 
     .nav-btn:active {
@@ -218,75 +247,48 @@
       pointer-events: none;
     }
 
-    /* Mode toggle buttons */
-    .mode-toggle {
-      display: flex;
-      gap: 10px;
-      margin-bottom: 10px;
+    /* Anime Info - mobile */
+    .anime-info-container {
+      background: linear-gradient(145deg, #121e2f, #0b111e);
+      border-radius: 16px;
+      padding: 1rem;
+      margin-bottom: 0.75rem;
+      border: 1px solid #2e3d5a;
     }
 
-    .mode-btn {
-      background: #1a253c;
-      color: #cce1ff;
-      border: 1px solid #2e426b;
-      border-radius: 40px;
-      padding: 8px 16px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      font-weight: 500;
+    .anime-name {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 0.5rem;
+      text-transform: capitalize;
       display: flex;
       align-items: center;
       gap: 6px;
     }
 
-    .mode-btn.active {
-      background: #3d63ff;
-      border-color: #3d63ff;
-    }
-
-    /* Anime Info Container */
-    .anime-info-container {
-      background: linear-gradient(145deg, #121e2f, #0b111e);
-      border-radius: 20px;
-      padding: 1.2rem;
-      margin-bottom: 1rem;
-      border: 1px solid #2e3d5a;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-    }
-
-    .anime-name {
-      font-size: 1.4rem;
-      font-weight: 700;
-      color: white;
-      margin-bottom: 0.3rem;
-      text-transform: capitalize;
-      letter-spacing: -0.5px;
-    }
-
     .anime-name i {
       color: #3d63ff;
-      margin-right: 8px;
-      font-size: 1.2rem;
+      font-size: 1.1rem;
     }
 
     .episode-details {
       display: flex;
       flex-direction: column;
-      gap: 0.3rem;
-      margin-top: 0.5rem;
+      gap: 0.25rem;
     }
 
     .detail-item {
       display: flex;
       align-items: baseline;
       gap: 8px;
-      font-size: 0.95rem;
+      font-size: 0.9rem;
     }
 
     .detail-label {
       color: #8aa3cc;
       font-weight: 500;
-      min-width: 45px;
+      min-width: 40px;
     }
 
     .detail-value {
@@ -297,35 +299,41 @@
 
     .episode-title-jp {
       color: #a5b9e2;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       margin-top: 0.5rem;
       padding-top: 0.5rem;
       border-top: 1px dashed #2e426b;
       font-style: italic;
     }
 
-    /* Servers section */
+    #introInfo {
+      margin-top: 8px;
+      font-size: 0.85rem;
+      color: #3d63ff;
+    }
+
+    /* Servers section - mobile */
     .section {
       background: #121c2b;
       border-radius: 16px;
-      padding: 1rem;
+      padding: 0.75rem;
       border: 1px solid #253553;
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
     }
 
     .section h2 {
-      font-size: 1.1rem;
+      font-size: 1rem;
       color: #cdd8ff;
-      margin-bottom: 1rem;
+      margin-bottom: 0.75rem;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     .server-grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 8px;
+      gap: 6px;
     }
 
     .server-btn {
@@ -333,12 +341,13 @@
       color: #cce1ff;
       border: 1px solid #2e426b;
       border-radius: 40px;
-      padding: 8px 16px;
+      padding: 10px 16px;
       cursor: pointer;
       font-size: 0.85rem;
       font-weight: 500;
       flex: 1 0 auto;
       max-width: fit-content;
+      min-height: 44px;
       transition: 0.2s;
     }
 
@@ -351,12 +360,12 @@
       border-color: #3d63ff;
     }
 
-    /* Episodes section with search */
+    /* Episodes section - mobile optimized */
     .episodes-header {
       display: flex;
       flex-direction: column;
-      gap: 0.8rem;
-      margin-bottom: 1rem;
+      gap: 0.5rem;
+      margin-bottom: 0.75rem;
     }
 
     .episodes-title {
@@ -366,16 +375,16 @@
     }
 
     .episodes-title h2 {
-      font-size: 1.1rem;
+      font-size: 1rem;
       color: #cdd8ff;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
     }
 
     #episode-count {
       color: #8aa3cc;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
     }
 
     .episode-search {
@@ -391,6 +400,7 @@
       border-radius: 40px;
       color: white;
       font-size: 0.95rem;
+      min-height: 44px;
     }
 
     .episode-search input:focus {
@@ -417,21 +427,25 @@
       color: #8aa3cc;
       font-size: 1.2rem;
       cursor: pointer;
-      padding: 4px 8px;
+      padding: 8px 12px;
       display: none;
+      min-width: 44px;
+      min-height: 44px;
     }
 
     .episode-search .clear-search.visible {
       display: block;
     }
 
+    /* Episodes grid - touch optimized */
     .episodes-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-      gap: 6px;
-      max-height: 350px;
+      grid-template-columns: repeat(auto-fill, minmax(55px, 1fr));
+      gap: 5px;
+      max-height: 280px;
       overflow-y: auto;
-      padding: 5px 2px;
+      padding: 4px 2px;
+      -webkit-overflow-scrolling: touch;
     }
 
     .ep-btn {
@@ -439,7 +453,7 @@
       color: #cce1ff;
       border: 1px solid #2e426b;
       border-radius: 8px;
-      padding: 10px 4px;
+      padding: 12px 2px;
       cursor: pointer;
       font-size: 0.85rem;
       font-weight: 500;
@@ -447,6 +461,7 @@
       position: relative;
       transition: 0.2s;
       min-width: 0;
+      min-height: 48px;
     }
 
     .ep-btn:active {
@@ -462,11 +477,11 @@
     .ep-btn.filler::after {
       content: "F";
       position: absolute;
-      top: -3px;
-      right: -3px;
+      top: -2px;
+      right: -2px;
       background: #ff6b6b;
       color: #000;
-      font-size: 0.6rem;
+      font-size: 0.55rem;
       font-weight: bold;
       width: 14px;
       height: 14px;
@@ -480,11 +495,11 @@
     .ep-btn.watched::before {
       content: "✓";
       position: absolute;
-      top: -3px;
-      left: -3px;
+      top: -2px;
+      left: -2px;
       background: #4caf50;
       color: white;
-      font-size: 0.6rem;
+      font-size: 0.55rem;
       font-weight: bold;
       width: 14px;
       height: 14px;
@@ -516,18 +531,18 @@
       border-radius: 12px;
     }
 
+    /* Tablet adjustments */
     @media (min-width: 768px) {
       header {
-        padding: 1rem 2rem;
+        padding: 0.75rem 1.5rem;
       }
 
       #anime-title {
-        font-size: 1.2rem;
-        max-width: none;
+        font-size: 1.1rem;
       }
 
       .container {
-        padding: 2rem;
+        padding: 1.5rem;
       }
 
       .episode-header {
@@ -537,7 +552,7 @@
       }
 
       #ep-title {
-        font-size: 1.8rem;
+        font-size: 1.5rem;
       }
 
       .nav-controls {
@@ -546,7 +561,8 @@
 
       .nav-btn {
         flex: none;
-        padding: 0.7rem 1.8rem;
+        padding: 0.7rem 2rem;
+        min-width: 120px;
       }
 
       .episodes-header {
@@ -556,31 +572,26 @@
       }
 
       .episode-search {
-        width: 300px;
+        width: 280px;
       }
 
       .episodes-grid {
-        grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
-        max-height: 400px;
+        grid-template-columns: repeat(auto-fill, minmax(65px, 1fr));
+        max-height: 350px;
       }
 
       .anime-info-container {
-        padding: 1.5rem;
+        padding: 1.25rem;
       }
 
       .anime-name {
-        font-size: 1.8rem;
-      }
-
-      .episode-details {
-        flex-direction: row;
-        flex-wrap: wrap;
-        gap: 1.5rem;
+        font-size: 1.5rem;
       }
     }
 
+    /* Scrollbar styling */
     .episodes-grid::-webkit-scrollbar {
-      width: 5px;
+      width: 4px;
     }
 
     .episodes-grid::-webkit-scrollbar-track {
@@ -598,28 +609,16 @@
 
 <header>
   <a href="javascript:history.back()">
-    <i class="fas fa-arrow-left"></i> Back
+    <i class="fas fa-arrow-left"></i>
   </a>
   <span id="anime-title">Loading...</span>
   <a href="/"><i class="fas fa-home"></i></a>
 </header>
 
 <div class="container">
-  <div class="mode-toggle">
-    <button class="mode-btn active" id="iframeMode" onclick="switchMode('iframe')">
-      <i class="fas fa-window-max"></i> Iframe Player
-    </button>
-    <button class="mode-btn" id="hlsMode" onclick="switchMode('hls')">
-      <i class="fas fa-film"></i> HLS Player
-    </button>
-  </div>
-
   <div class="player-wrapper" id="playerWrapper">
-    <!-- Iframe Player (default) -->
-    <iframe id="iframe-player" class="player-mode" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-presentation allow-top-navigation"></iframe>
-    
-    <!-- HLS Player (hidden by default) -->
-    <video-js id="hls-player" class="video-js player-mode" style="display: none;" controls preload="auto" data-setup='{"fluid": true}'>
+    <!-- HLS Player (only mode) -->
+    <video-js id="hls-player" class="video-js" controls preload="auto" data-setup='{"fluid": true, "controls": true, "autoplay": false, "preload": "auto"}'>
       <p class="vjs-no-js">Please enable JavaScript</p>
     </video-js>
 
@@ -631,9 +630,9 @@
 
     <div id="playerFallback" class="player-fallback hidden">
       <i class="fas fa-exclamation-triangle"></i>
-      <h3>Video Player Not Loading</h3>
-      <p>Try switching to a different server or player mode below</p>
-      <button class="nav-btn" onclick="retryCurrentServer()" style="margin-top: 1rem; padding: 0.8rem 2rem;">
+      <h3>Video Not Loading</h3>
+      <p>Try switching servers below</p>
+      <button onclick="retryCurrentServer()">
         <i class="fas fa-redo"></i> Retry
       </button>
     </div>
@@ -668,7 +667,7 @@
       </div>
     </div>
     <div class="episode-title-jp" id="currentEpJpTitle"></div>
-    <div id="introInfo" style="margin-top: 10px; font-size: 0.9rem; color: #3d63ff;"></div>
+    <div id="introInfo"></div>
   </div>
 
   <div class="section">
@@ -686,7 +685,7 @@
       </div>
       <div class="episode-search">
         <i class="fas fa-search"></i>
-        <input type="text" id="episodeSearch" placeholder="Search episode # or title...">
+        <input type="text" id="episodeSearch" placeholder="Search episode...">
         <button class="clear-search" id="clearSearch"><i class="fas fa-times"></i></button>
       </div>
     </div>
@@ -709,9 +708,6 @@ const API_BASE = (() => {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
         return `${protocol}//${hostname}${port ? ':' + port : ''}/api`;
     }
-    if (hostname.includes('vercel.app')) {
-        return `${protocol}//${hostname}/api`;
-    }
     return '/api';
 })();
 
@@ -720,7 +716,6 @@ const PROXY_BASE = 'https://m3u8proxy-six-omega.vercel.app/m3u8-proxy?url=';
 const params = new URLSearchParams(location.search);
 const animeId = params.get("id") || "one-piece-100";
 const urlEpisodeId = params.get("ep") || "";
-const iframe = document.getElementById("iframe-player");
 const hlsPlayer = document.getElementById("hls-player");
 const playerFallback = document.getElementById("playerFallback");
 const skipPopup = document.getElementById("skipPopup");
@@ -733,14 +728,12 @@ let currentType = "sub";
 let watchHistory = JSON.parse(localStorage.getItem(`watch_${animeId}`)) || [];
 let serverRetryCount = 0;
 const MAX_RETRIES = 3;
-let loadTimeout = null;
-let currentMode = 'iframe'; // 'iframe' or 'hls'
 let videoPlayer = null;
 let introStart = null;
 let introEnd = null;
 let skipTimeout = null;
 
-// Initialize video.js player
+// Initialize video.js player (HLS only)
 function initHlsPlayer() {
     if (!videoPlayer) {
         videoPlayer = videojs('hls-player', {
@@ -751,8 +744,13 @@ function initHlsPlayer() {
                 hls: {
                     enableLowInitialPlaylist: true,
                     smoothQualityChange: true,
-                    overrideNative: true
+                    overrideNative: true,
+                    handleManifestRedirects: true
                 }
+            },
+            playbackRates: [0.5, 1, 1.25, 1.5, 2],
+            userActions: {
+                hotkeys: true
             }
         });
 
@@ -769,7 +767,7 @@ function initHlsPlayer() {
             }
         });
 
-        // Auto landscape on fullscreen
+        // Auto landscape on fullscreen for mobile
         videoPlayer.on('fullscreenchange', () => {
             if (videoPlayer.isFullscreen()) {
                 if (screen.orientation && screen.orientation.lock) {
@@ -777,32 +775,20 @@ function initHlsPlayer() {
                 }
             }
         });
+
+        // Error handling
+        videoPlayer.on('error', () => {
+            console.error('Video.js error:', videoPlayer.error());
+            playerFallback.classList.remove('hidden');
+        });
+
+        // Success handling
+        videoPlayer.on('loadedmetadata', () => {
+            playerFallback.classList.add('hidden');
+            serverRetryCount = 0;
+        });
     }
     return videoPlayer;
-}
-
-// Switch between iframe and HLS mode
-function switchMode(mode) {
-    currentMode = mode;
-    document.getElementById('iframeMode').classList.toggle('active', mode === 'iframe');
-    document.getElementById('hlsMode').classList.toggle('active', mode === 'hls');
-    
-    // Hide both players initially
-    iframe.style.display = 'none';
-    hlsPlayer.style.display = 'none';
-    
-    // Show selected player
-    if (mode === 'iframe') {
-        iframe.style.display = 'block';
-    } else {
-        hlsPlayer.style.display = 'block';
-    }
-    
-    // Reload current episode in new mode
-    const currentEp = episodesList[currentEpIndex];
-    if (currentEp) {
-        loadStream(currentEp.data_id || currentEp.id);
-    }
 }
 
 // Skip popup functions
@@ -853,30 +839,21 @@ function isWatched(episodeNo) {
     return watchHistory.includes(episodeNo);
 }
 
-function clearLoadTimeout() {
-    if (loadTimeout) {
-        clearTimeout(loadTimeout);
-        loadTimeout = null;
-    }
-}
-
-// Load stream with HLS support
+// Load stream with HLS only
 async function loadStream(epId, server = currentServer, type = currentType) {
     try {
-        iframe.src = 'about:blank';
         if (videoPlayer) {
             videoPlayer.src({ type: 'application/x-mpegURL', src: '' });
         }
         playerFallback.classList.add('hidden');
         hideSkipPopup();
         serverRetryCount = 0;
-        clearLoadTimeout();
 
         currentServer = server;
         currentType = type;
 
         const streamUrl = `${API_BASE}/stream?id=${animeId}?ep=${epId}&server=${server}&type=${type}`;
-        console.log('📡 Loading stream from:', streamUrl);
+        console.log('📡 Loading HLS stream from:', streamUrl);
 
         const res = await fetch(streamUrl);
         const json = await res.json();
@@ -891,71 +868,66 @@ async function loadStream(epId, server = currentServer, type = currentType) {
         
         if (introStart && introEnd) {
             document.getElementById('introInfo').innerHTML = 
-                `<i class="fas fa-clock"></i> Intro: ${introStart}s - ${introEnd}s (Click skip when prompted)`;
+                `<i class="fas fa-clock"></i> Intro: ${introStart}s - ${introEnd}s`;
+        } else {
+            document.getElementById('introInfo').innerHTML = '';
         }
 
-        if (currentMode === 'iframe') {
-            // Iframe mode
-            let videoUrl = stream.iframe || stream.embed_url || stream.url || '';
-            if (videoUrl) {
-                if (videoUrl.includes('gogoanime') || videoUrl.includes('gogocdn') || videoUrl.includes('vidcdn')) {
-                    const encodedUrl = btoa(videoUrl);
-                    iframe.src = `${API_BASE.replace('/api', '')}/proxy/iframe?url=${encodedUrl}`;
-                } else {
-                    iframe.src = videoUrl;
-                }
+        // HLS only mode
+        if (stream.link && stream.link.file) {
+            const hlsUrl = stream.link.file;
+            const proxyUrl = PROXY_BASE + encodeURIComponent(hlsUrl);
+            
+            initHlsPlayer();
+            videoPlayer.src({ type: 'application/x-mpegURL', src: proxyUrl });
+            
+            // Add subtitles if available
+            if (stream.tracks && stream.tracks.length > 0) {
+                // Remove old tracks
+                videoPlayer.remoteTextTracks().forEach(track => {
+                    videoPlayer.removeRemoteTextTrack(track);
+                });
+                
+                // Add new tracks
+                stream.tracks.forEach(track => {
+                    if (track.kind === 'captions' || track.kind === 'subtitles') {
+                        videoPlayer.addRemoteTextTrack({
+                            kind: 'captions',
+                            label: track.label || 'English',
+                            language: track.language || 'en',
+                            src: track.file,
+                            default: track.default || false
+                        }, false);
+                    }
+                });
             }
+            
+            videoPlayer.play().catch(e => {
+                console.log('Autoplay prevented:', e);
+                // Show play button is enough
+            });
         } else {
-            // HLS mode
-            if (stream.link && stream.link.file) {
-                const hlsUrl = stream.link.file;
-                const proxyUrl = PROXY_BASE + encodeURIComponent(hlsUrl);
-                
-                initHlsPlayer();
-                videoPlayer.src({ type: 'application/x-mpegURL', src: proxyUrl });
-                
-                // Add subtitles if available
-                if (stream.tracks && stream.tracks.length > 0) {
-                    stream.tracks.forEach(track => {
-                        if (track.kind === 'captions' || track.kind === 'subtitles') {
-                            videoPlayer.addRemoteTextTrack({
-                                kind: 'captions',
-                                label: track.label || 'English',
-                                language: 'en',
-                                src: track.file,
-                                default: track.default || false
-                            }, false);
-                        }
-                    });
-                }
-                
-                videoPlayer.play().catch(e => console.log('Autoplay prevented:', e));
-            }
+            throw new Error("No HLS stream available");
         }
 
         renderServers(json.results.servers, epId);
 
     } catch (e) {
         console.error('❌ Stream error:', e);
-        handleIframeError(epId);
-        clearLoadTimeout();
-    }
-}
-
-function handleIframeError(epId) {
-    playerFallback.classList.remove('hidden');
-    
-    if (serverRetryCount < MAX_RETRIES) {
-        serverRetryCount++;
-        const servers = ['hd-1', 'hd-2', 'hd-3'];
-        const types = ['sub', 'dub'];
-        const currentServerIndex = servers.indexOf(currentServer);
-        const nextServer = servers[(currentServerIndex + 1) % servers.length];
-        const nextType = serverRetryCount % 2 === 0 ? 'dub' : 'sub';
+        playerFallback.classList.remove('hidden');
         
-        setTimeout(() => {
-            loadStream(epId, nextServer, nextType);
-        }, 1000);
+        if (serverRetryCount < MAX_RETRIES) {
+            serverRetryCount++;
+            const servers = ['hd-1', 'hd-2', 'hd-3'];
+            const types = ['sub', 'dub'];
+            const currentServerIndex = servers.indexOf(currentServer);
+            const nextServer = servers[(currentServerIndex + 1) % servers.length];
+            const nextType = serverRetryCount % 2 === 0 ? 'dub' : 'sub';
+            
+            setTimeout(() => {
+                loadStream(epId, nextServer, nextType);
+            }, 1000);
+        }
     }
 }
 
@@ -971,7 +943,7 @@ function retryCurrentServer() {
 function renderServers(servers, epId) {
     const container = document.getElementById("server-list");
     if (!servers?.length) {
-        container.innerHTML = "<p style='color:#8aa3cc'>📌 No alternative servers available.</p>";
+        container.innerHTML = "<p style='color:#8aa3cc'>📌 No alternative servers</p>";
         return;
     }
     
@@ -1033,7 +1005,7 @@ async function loadEpisodes() {
         document.getElementById("episodes-grid").innerHTML = `
             <div class="error-message">
                 <i class="fas fa-exclamation-triangle"></i> 
-                Failed to load episodes. ${e.message}
+                Failed to load episodes
             </div>
         `;
     }
@@ -1129,23 +1101,28 @@ document.getElementById("nextEp").onclick = () => {
 };
 
 // Make functions global
-window.switchMode = switchMode;
 window.retryCurrentServer = retryCurrentServer;
 window.skipIntro = skipIntro;
+window.loadStream = loadStream;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
-    // Set default mode
-    switchMode('iframe');
     loadEpisodes();
     
-    // Auto landscape on fullscreen for iframe mode
-    iframe.addEventListener('fullscreenchange', () => {
-        if (document.fullscreenElement) {
-            if (screen.orientation && screen.orientation.lock) {
-                screen.orientation.lock('landscape').catch(e => console.log('Orientation lock failed:', e));
-            }
+    // Prevent zoom on double tap
+    document.addEventListener('touchstart', (e) => {
+        if (e.touches.length > 1) {
+            e.preventDefault();
         }
+    }, { passive: false });
+    
+    // Handle orientation changes
+    window.addEventListener('orientationchange', () => {
+        setTimeout(() => {
+            if (videoPlayer && videoPlayer.isFullscreen()) {
+                // Adjust fullscreen on orientation change
+            }
+        }, 100);
     });
 });
 </script>
