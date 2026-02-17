@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
+  <title>ZenStream · Anime Home</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0d14;
+      color: #f0f4fc;
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    /* Mobile-first navbar */
+    .navbar {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      background: #121a28;
+      padding: 1rem;
+      border-radius: 24px;
+      border: 1px solid #2b374d;
+      margin-bottom: 1.5rem;
+    }
+
+    .logo {
+      font-size: 1.8rem;
+      font-weight: 800;
+      background: linear-gradient(145deg, #a6c4ff, #5b89f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+    }
+
+    .search-home {
+      display: flex;
+      background: #1e2738;
+      border-radius: 40px;
+      border: 1px solid #34415c;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    .search-home input {
+      flex: 1;
+      background: transparent;
+      border: none;
+      padding: 0.8rem 1rem;
+      color: white;
+      font-size: 1rem;
+      outline: none;
+      min-width: 0;
+    }
+
+    .search-home button {
+      background: #2d4270;
+      border: none;
+      color: white;
+      padding: 0.8rem 1.2rem;
+      cursor: pointer;
+      font-size: 1rem;
+    }
+
+    .search-home button:active {
+      background: #3e5791;
+    }
+
+    /* Section titles */
+    .section-title {
+      font-size: 1.4rem;
+      font-weight: 700;
+      margin: 1.8rem 0 1rem;
+      border-left: 5px solid #3f6ad8;
+      padding-left: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Grid layout */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 1rem;
+    }
+
+    /* Anime cards */
+    .card {
+      background: #131c2b;
+      border-radius: 16px;
+      padding: 0.8rem;
+      border: 1px solid #2a354c;
+      cursor: pointer;
+      transition: 0.2s;
+    }
+
+    .card:active {
+      transform: scale(0.98);
+      border-color: #6182ce;
+    }
+
+    .card img {
+      width: 100%;
+      aspect-ratio: 3/4;
+      border-radius: 10px;
+      object-fit: cover;
+      background: #1e2738;
+    }
+
+    .card h4 {
+      margin-top: 0.6rem;
+      font-size: 0.9rem;
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card p {
+      font-size: 0.75rem;
+      color: #a7b9dd;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Spotlight section */
+    .spotlight {
+      background: linear-gradient(145deg, #121e2f, #0b111e);
+      border-radius: 24px;
+      border: 1px solid #2e3d5a;
+      overflow: hidden;
+      margin-bottom: 1.5rem;
+    }
+
+    .spotlight-poster {
+      width: 100%;
+      max-height: 200px;
+      overflow: hidden;
+    }
+
+    .spotlight-poster img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .spotlight-info {
+      padding: 1.2rem;
+    }
+
+    .spotlight-info h2 {
+      font-size: 1.4rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .jptitle {
+      color: #a5b9e2;
+      font-size: 0.9rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .tv-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.8rem;
+      background: #202d44;
+      padding: 0.5rem 1rem;
+      border-radius: 40px;
+      width: fit-content;
+      margin: 1rem 0;
+      font-size: 0.8rem;
+    }
+
+    .desc {
+      max-height: 80px;
+      overflow-y: auto;
+      color: #ccdaf5;
+      margin: 1rem 0;
+      font-size: 0.9rem;
+      line-height: 1.4;
+      padding-right: 0.5rem;
+    }
+
+    .watch-btn {
+      background: #3560b0;
+      border: none;
+      color: white;
+      font-weight: 600;
+      font-size: 1rem;
+      padding: 0.8rem 1.5rem;
+      border-radius: 40px;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      border: 1px solid #6b8ed6;
+      width: 100%;
+      justify-content: center;
+    }
+
+    .watch-btn:active {
+      background: #4274cc;
+    }
+
+    footer {
+      text-align: center;
+      margin-top: 3rem;
+      padding: 1rem;
+      opacity: 0.7;
+      font-size: 0.9rem;
+    }
+
+    footer a {
+      color: #96b4fc;
+      text-decoration: none;
+    }
+
+    /* Tablet and up */
+    @media (min-width: 768px) {
+      .container {
+        padding: 2rem;
+      }
+
+      .navbar {
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.8rem 2rem;
+      }
+
+      .logo {
+        font-size: 2rem;
+      }
+
+      .search-home {
+        width: auto;
+      }
+
+      .search-home input {
+        width: 250px;
+      }
+
+      .section-title {
+        font-size: 1.8rem;
+        margin: 2.5rem 0 1.3rem;
+        border-left-width: 8px;
+      }
+
+      .grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+        gap: 1.4rem;
+      }
+
+      .spotlight {
+        display: flex;
+        flex-wrap: wrap;
+      }
+
+      .spotlight-poster {
+        flex: 1 1 280px;
+        max-height: 380px;
+      }
+
+      .spotlight-info {
+        flex: 2 1 500px;
+        padding: 2rem;
+      }
+
+      .spotlight-info h2 {
+        font-size: 2rem;
+      }
+
+      .watch-btn {
+        width: auto;
+      }
+    }
+
+    /* Custom scrollbar */
+    .desc::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .desc::-webkit-scrollbar-track {
+      background: #1a253c;
+    }
+
+    .desc::-webkit-scrollbar-thumb {
+      background: #3d63ff;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <nav class="navbar">
+      <span class="logo"><i class="fas fa-infinity"></i> ZenStream</span>
+      <div class="search-home">
+        <input type="text" id="homeSearchInput" placeholder="Search anime...">
+        <button id="homeSearchBtn"><i class="fas fa-search"></i></button>
+      </div>
+    </nav>
+
+    <div id="spotlightContainer"></div>
+    
+    <h2 class="section-title"><i class="fas fa-fire"></i> Trending Now</h2>
+    <div class="grid" id="trendingGrid"></div>
+    
+    <h2 class="section-title"><i class="fas fa-clock"></i> Latest Episodes</h2>
+    <div class="grid" id="latestGrid"></div>
+    
+    <h2 class="section-title"><i class="fas fa-star"></i> Most Popular</h2>
+    <div class="grid" id="popularGrid"></div>
+    
+    <footer>
+      ⚡ every anime · <a href="#">watch</a>
+    </footer>
+  </div>
+
+  <script>
+    const API_BASE = 'https://anime-apis-rosy.vercel.app/api/';
+
+    async function fetchApi(endpoint = '') {
+      try {
+        const res = await fetch(API_BASE + endpoint);
+        return await res.json();
+      } catch (e) {
+        console.warn(e);
+        return { success: false };
+      }
+    }
+
+    function renderGrid(el, items) {
+      if (!items?.length) {
+        el.innerHTML = '<p style="color:#6c84b0; text-align:center; padding:2rem;">Nothing to show</p>';
+        return;
+      }
+      
+      el.innerHTML = items.slice(0, 12).map(a => `
+        <div class="card" onclick="goToWatch('${a.id}', '${a.title.replace(/'/g, "\\'")}', '${a.poster}')">
+          <img src="${a.poster}" loading="lazy" alt="${a.title}" onerror="this.src='https://via.placeholder.com/200x300?text=No+Image'">
+          <h4>${a.title}</h4>
+          <p>${a.japanese_title || ''}</p>
+        </div>
+      `).join('');
+    }
+
+    window.goToWatch = (id, title, poster) => {
+      window.location.href = `watch.html?id=${encodeURIComponent(id)}`;
+    };
+
+    async function loadHome() {
+      const data = await fetchApi('');
+      
+      if (!data.success) {
+        document.getElementById('trendingGrid').innerHTML = '<p style="color:#ff6b6b; text-align:center;">Failed to load content</p>';
+        return;
+      }
+      
+      const r = data.results;
+      
+      // Spotlight
+      const s = r.spotlights?.[0];
+      if (s) {
+        document.getElementById('spotlightContainer').innerHTML = `
+        <div class="spotlight">
+          <div class="spotlight-poster">
+            <img src="${s.poster}" alt="${s.title}" onerror="this.src='https://via.placeholder.com/400x300?text=No+Image'">
+          </div>
+          <div class="spotlight-info">
+            <h2>${s.title}</h2>
+            <div class="jptitle">${s.japanese_title || ''}</div>
+            <div class="tv-meta">
+              <span><i class="fas fa-tv"></i> ${s.tvInfo?.showType || 'TV'}</span>
+              <span><i class="far fa-clock"></i> ${s.tvInfo?.duration || ''}</span>
+              <span><i class="fas fa-closed-captioning"></i> SUB ${s.tvInfo?.episodeInfo?.sub || '?'}</span>
+              <span><i class="fas fa-microphone"></i> DUB ${s.tvInfo?.episodeInfo?.dub || '?'}</span>
+            </div>
+            <p class="desc">${s.description || 'No description available.'}</p>
+            <button class="watch-btn" onclick="goToWatch('${s.id}')">
+              <i class="fas fa-play"></i> Watch now
+            </button>
+          </div>
+        </div>`;
+      }
+      
+      renderGrid(document.getElementById('trendingGrid'), r.trending);
+      renderGrid(document.getElementById('latestGrid'), r.topAiring);
+      renderGrid(document.getElementById('popularGrid'), r.mostPopular);
+    }
+
+    document.getElementById('homeSearchBtn').addEventListener('click', async () => {
+      const kw = document.getElementById('homeSearchInput').value.trim();
+      if (!kw) return;
+      
+      const data = await fetchApi(`search?keyword=${encodeURIComponent(kw)}`);
+      
+      if (data.success && data.results) {
+        renderGrid(document.getElementById('popularGrid'), data.results);
+        document.querySelector('.section-title:last-of-type').innerHTML = `<i class="fas fa-search"></i> Results for "${kw}"`;
+      }
+    });
+
+    document.getElementById('homeSearchInput').addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        document.getElementById('homeSearchBtn').click();
+      }
+    });
+
+    loadHome();
+  </script>
+</body>
+</html>
