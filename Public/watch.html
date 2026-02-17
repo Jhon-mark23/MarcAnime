@@ -622,9 +622,33 @@
 </div>
 
 <script>
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? '/api' 
-    : '/api'; // Use relative path for both local and Vercel
+// Auto-detect API base URL for both localhost and Vercel
+const API_BASE = (() => {
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol;
+    const port = window.location.port;
+    
+    // Localhost detection
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+        return `${protocol}//${hostname}${port ? ':' + port : ''}/api`;
+    }
+    
+    // Vercel detection
+    if (hostname.includes('vercel.app')) {
+        return `${protocol}//${hostname}/api`;
+    }
+    
+    // GitHub Pages or custom domain
+    if (hostname.includes('github.io') || hostname.includes('netlify.app')) {
+        return `${protocol}//${hostname}/api`;
+    }
+    
+    // Default fallback - relative path (works if API is on same domain)
+    return '/api';
+})();
+
+console.log('🔧 API Base URL:', API_BASE);
+console.log('🌍 Environment:', window.location.hostname);
 
 const params = new URLSearchParams(location.search);
 const animeId = params.get("id") || "one-piece-100";
@@ -640,313 +664,380 @@ let currentType = "sub";
 let watchHistory = JSON.parse(localStorage.getItem(`watch_${animeId}`)) || [];
 let serverRetryCount = 0;
 const MAX_RETRIES = 3;
+let loadTimeout = null;
 
 // Helper functions
 function formatTitle(id) {
-  return id.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    return id.split('-').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
 }
 
 function updateURL(epId) {
-  const url = new URL(window.location);
-  url.searchParams.set('id', animeId);
-  url.searchParams.set('ep', epId);
-  window.history.replaceState({}, '', url);
+    const url = new URL(window.location);
+    url.searchParams.set('id', animeId);
+    url.searchParams.set('ep', epId);
+    window.history.replaceState({}, '', url);
 }
 
 // Watch history
 function markAsWatched(episodeNo) {
-  if (!watchHistory.includes(episodeNo)) {
-    watchHistory.push(episodeNo);
-    localStorage.setItem(`watch_${animeId}`, JSON.stringify(watchHistory));
-  }
+    if (!watchHistory.includes(episodeNo)) {
+        watchHistory.push(episodeNo);
+        localStorage.setItem(`watch_${animeId}`, JSON.stringify(watchHistory));
+    }
 }
 
 function isWatched(episodeNo) {
-  return watchHistory.includes(episodeNo);
+    return watchHistory.includes(episodeNo);
 }
 
-// Load stream with fallback
-async function loadStream(epId, server = currentServer, type = currentType) {
-  try {
-    // Show loading state
-    iframe.src = 'about:blank';
-    playerFallback.classList.add('hidden');
-    serverRetryCount = 0;
-    
-    currentServer = server;
-    currentType = type;
-    
-    // Use local proxy to avoid CORS
-    const streamUrl = `${API_BASE}/stream?id=${animeId}?ep=${epId}&server=${server}&type=${type}`;
-    console.log('Loading stream from:', streamUrl);
-    
-    const res = await fetch(streamUrl);
-    const json = await res.json();
-    
-    if (!json.success) throw new Error("Stream not found");
-    
-    const stream = json.results.streamingLink;
-    
-    // Try multiple methods to load the video
-    if (stream.iframe) {
-      // Method 1: Direct iframe
-      iframe.src = stream.iframe;
-      
-      // Add multiple event listeners for iframe errors
-      iframe.onload = () => {
-        console.log('Iframe loaded successfully');
-        playerFallback.classList.add('hidden');
-      };
-      
-      iframe.onerror = () => {
-        console.error('Iframe failed to load');
-        handleIframeError(epId);
-      };
-      
-      // Set a timeout to detect if iframe fails to load
-      setTimeout(() => {
-        try {
-          // Check if iframe content is accessible (may throw cross-origin error)
-          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-          if (!iframeDoc) {
-            // Cross-origin but might still be working
-            console.log('Iframe is cross-origin, assuming it works');
-          }
-        } catch (e) {
-          // Cross-origin error is actually good - means iframe loaded
-          console.log('Iframe loaded (cross-origin)');
-        }
-      }, 5000);
-      
-    } else if (stream.embed_url) {
-      // Method 2: Embed URL
-      iframe.src = stream.embed_url;
-    } else {
-      // Method 3: Direct video URL
-      iframe.src = `about:blank?video=${encodeURIComponent(stream.url || '')}`;
+// Clear iframe timeout
+function clearLoadTimeout() {
+    if (loadTimeout) {
+        clearTimeout(loadTimeout);
+        loadTimeout = null;
     }
-    
-    renderServers(json.results.servers, epId);
-    
-  } catch (e) {
-    console.error('Stream error:', e);
-    handleIframeError(epId);
-  }
+}
+
+// Load stream with enhanced proxy support
+async function loadStream(epId, server = currentServer, type = currentType) {
+    try {
+        // Show loading state
+        iframe.src = 'about:blank';
+        playerFallback.classList.add('hidden');
+        serverRetryCount = 0;
+        clearLoadTimeout();
+
+        currentServer = server;
+        currentType = type;
+
+        // Use our API proxy to avoid CORS
+        const streamUrl = `${API_BASE}/stream?id=${animeId}?ep=${epId}&server=${server}&type=${type}`;
+        console.log('📡 Loading stream from:', streamUrl);
+
+        const res = await fetch(streamUrl);
+        const json = await res.json();
+
+        if (!json.success) throw new Error("Stream not found");
+
+        const stream = json.results.streamingLink;
+        
+        // Check if our proxy modified the iframe URL
+        let videoUrl = stream.iframe || stream.embed_url || stream.url || '';
+
+        if (videoUrl) {
+            // Method 1: Try our proxy first
+            if (videoUrl.includes('/proxy/iframe')) {
+                console.log('🔄 Using proxy iframe:', videoUrl);
+                iframe.src = videoUrl;
+            } 
+            // Method 2: Direct iframe with our proxy parameters
+            else {
+                // Encode the URL for our proxy if it's from known sources
+                if (videoUrl.includes('gogoanime') || videoUrl.includes('gogocdn') || videoUrl.includes('vidcdn')) {
+                    const encodedUrl = btoa(videoUrl);
+                    iframe.src = `${API_BASE.replace('/api', '')}/proxy/iframe?url=${encodedUrl}`;
+                    console.log('🔄 Proxying external iframe:', videoUrl);
+                } else {
+                    // Direct iframe with enhanced attributes
+                    iframe.src = videoUrl;
+                    console.log('🎬 Direct iframe:', videoUrl);
+                }
+            }
+
+            // Add load event listeners
+            iframe.onload = () => {
+                console.log('✅ Iframe loaded successfully');
+                playerFallback.classList.add('hidden');
+                clearLoadTimeout();
+            };
+
+            iframe.onerror = () => {
+                console.error('❌ Iframe failed to load');
+                handleIframeError(epId);
+                clearLoadTimeout();
+            };
+
+            // Set timeout for iframe load
+            loadTimeout = setTimeout(() => {
+                console.warn('⚠️ Iframe load timeout');
+                handleIframeError(epId);
+            }, 15000);
+
+        } else {
+            throw new Error("No valid video URL found");
+        }
+
+        renderServers(json.results.servers, epId);
+
+    } catch (e) {
+        console.error('❌ Stream error:', e);
+        handleIframeError(epId);
+        clearLoadTimeout();
+    }
 }
 
 function handleIframeError(epId) {
-  playerFallback.classList.remove('hidden');
-  
-  // Try alternative server if available
-  if (serverRetryCount < MAX_RETRIES) {
-    serverRetryCount++;
-    const altServer = serverRetryCount === 1 ? 'hd-1' : 'hd-3';
-    const altType = currentType;
+    playerFallback.classList.remove('hidden');
     
-    console.log(`Retrying with ${altServer} (${altServer} attempt ${serverRetryCount})`);
-    loadStream(epId, altServer, altType);
-  }
+    const errorMessage = document.querySelector('#playerFallback p');
+    if (errorMessage) {
+        errorMessage.textContent = `Failed to load from ${currentServer} (${currentType}). Trying alternative server...`;
+    }
+
+    // Try alternative server if available
+    if (serverRetryCount < MAX_RETRIES) {
+        serverRetryCount++;
+        
+        // Cycle through different servers
+        const servers = ['hd-1', 'hd-2', 'hd-3'];
+        const types = ['sub', 'dub'];
+        
+        const currentServerIndex = servers.indexOf(currentServer);
+        const nextServer = servers[(currentServerIndex + 1) % servers.length];
+        
+        // Alternate between sub and dub on each retry
+        const nextType = serverRetryCount % 2 === 0 ? 'dub' : 'sub';
+
+        console.log(`🔄 Retry ${serverRetryCount}/${MAX_RETRIES}: ${nextServer} (${nextType})`);
+        
+        setTimeout(() => {
+            loadStream(epId, nextServer, nextType);
+        }, 1000); // Delay before retry
+    } else {
+        const errorMessage = document.querySelector('#playerFallback p');
+        if (errorMessage) {
+            errorMessage.textContent = 'Unable to load video from any server. Please try again later.';
+        }
+        console.error('❌ All servers failed');
+    }
 }
 
 function retryCurrentServer() {
-  const ep = episodesList[currentEpIndex];
-  if (ep) {
-    playerFallback.classList.add('hidden');
-    loadStream(ep.data_id || ep.id, currentServer, currentType);
-  }
+    const ep = episodesList[currentEpIndex];
+    if (ep) {
+        playerFallback.classList.add('hidden');
+        serverRetryCount = 0;
+        loadStream(ep.data_id || ep.id, currentServer, currentType);
+    }
 }
 
-// Render server buttons
+// Render server buttons with working status
 function renderServers(servers, epId) {
-  const container = document.getElementById("server-list");
-  if (!servers?.length) {
-    container.innerHTML = "<p style='color:#8aa3cc'>📌 No alternative servers available.</p>";
-    return;
-  }
-  
-  container.innerHTML = servers.map(s => {
-    const serverName = s.serverName.toLowerCase();
-    const isActive = serverName === currentServer && s.type === currentType;
-    return `
-      <button class="server-btn ${isActive ? 'active' : ''}" 
-              onclick="loadStream('${epId}', '${serverName}', '${s.type}')"
-              data-server="${serverName}"
-              data-type="${s.type}">
-        <span>${s.serverName}</span>
-        <span style="font-size:0.7rem; opacity:0.8">(${s.type})</span>
-      </button>
-    `;
-  }).join("");
+    const container = document.getElementById("server-list");
+    if (!servers?.length) {
+        container.innerHTML = "<p style='color:#8aa3cc'>📌 No alternative servers available.</p>";
+        return;
+    }
+
+    // Test each server's availability (optional)
+    container.innerHTML = servers.map(s => {
+        const serverName = s.serverName.toLowerCase();
+        const isActive = serverName === currentServer && s.type === currentType;
+        return `
+            <button class="server-btn ${isActive ? 'active' : ''}" 
+                    onclick="loadStream('${epId}', '${serverName}', '${s.type}')"
+                    data-server="${serverName}"
+                    data-type="${s.type}">
+                <span>${s.serverName}</span>
+                <span style="font-size:0.7rem; opacity:0.8">(${s.type})</span>
+            </button>
+        `;
+    }).join("");
 }
 
-// Load episodes
+// Load episodes with error handling
 async function loadEpisodes() {
-  try {
-    const res = await fetch(`${API_BASE}/episodes/${animeId}`);
-    const json = await res.json();
-    
-    if (!json.success) throw new Error("No episodes found");
-    
-    episodesList = json.results.episodes;
-    filteredEpisodes = [...episodesList];
-    document.getElementById("episode-count").textContent = `${episodesList.length} total`;
-    document.getElementById("anime-title").textContent = formatTitle(animeId);
-    
-    // Find current episode index
-    if (urlEpisodeId) {
-      currentEpIndex = episodesList.findIndex(ep => ep.id === urlEpisodeId || ep.data_id === urlEpisodeId);
+    try {
+        const episodesUrl = `${API_BASE}/episodes/${animeId}`;
+        console.log('📋 Loading episodes from:', episodesUrl);
+        
+        const res = await fetch(episodesUrl);
+        
+        if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        
+        const json = await res.json();
+
+        if (!json.success) throw new Error("No episodes found");
+
+        episodesList = json.results.episodes;
+        filteredEpisodes = [...episodesList];
+        document.getElementById("episode-count").textContent = `${episodesList.length} total`;
+        document.getElementById("anime-title").textContent = formatTitle(animeId);
+
+        // Find current episode index
+        if (urlEpisodeId) {
+            currentEpIndex = episodesList.findIndex(ep => ep.id === urlEpisodeId || ep.data_id === urlEpisodeId);
+        }
+        if (currentEpIndex === -1 || !urlEpisodeId) currentEpIndex = 0;
+
+        renderEpisodes();
+
+        // Load first/selected episode
+        const currentEp = episodesList[currentEpIndex];
+        if (currentEp) {
+            updateAnimeInfoContainer(currentEp);
+            loadStream(currentEp.data_id || currentEp.id);
+        }
+
+        // Setup search
+        const searchInput = document.getElementById('episodeSearch');
+        const clearBtn = document.getElementById('clearSearch');
+
+        searchInput.addEventListener('input', handleSearch);
+        clearBtn.addEventListener('click', () => {
+            searchInput.value = '';
+            clearBtn.classList.remove('visible');
+            filteredEpisodes = [...episodesList];
+            renderEpisodes();
+        });
+
+    } catch (e) {
+        console.error('❌ Failed to load episodes:', e);
+        document.getElementById("episodes-grid").innerHTML = `
+            <div class="error-message">
+                <i class="fas fa-exclamation-triangle"></i> 
+                Failed to load episodes. ${e.message}
+            </div>
+        `;
     }
-    if (currentEpIndex === -1 || !urlEpisodeId) currentEpIndex = 0;
-    
-    renderEpisodes();
-    
-    // Load first/selected episode
-    const currentEp = episodesList[currentEpIndex];
-    if (currentEp) {
-      updateAnimeInfoContainer(currentEp);
-      loadStream(currentEp.data_id || currentEp.id);
-    }
-    
-    // Setup search
-    const searchInput = document.getElementById('episodeSearch');
-    const clearBtn = document.getElementById('clearSearch');
-    
-    searchInput.addEventListener('input', handleSearch);
-    clearBtn.addEventListener('click', () => {
-      searchInput.value = '';
-      clearBtn.classList.remove('visible');
-      filteredEpisodes = [...episodesList];
-      renderEpisodes();
-    });
-    
-  } catch (e) {
-    console.error(e);
-    document.getElementById("episodes-grid").innerHTML = `<div class="error-message">❌ Failed to load episodes</div>`;
-  }
 }
 
 // Search handler
 function handleSearch(e) {
-  const searchTerm = e.target.value.toLowerCase().trim();
-  const clearBtn = document.getElementById('clearSearch');
-  
-  if (searchTerm) {
-    clearBtn.classList.add('visible');
-    filteredEpisodes = episodesList.filter(ep => 
-      ep.episode_no.toString().includes(searchTerm) ||
-      (ep.title && ep.title.toLowerCase().includes(searchTerm)) ||
-      (ep.japanese_title && ep.japanese_title.toLowerCase().includes(searchTerm))
-    );
-  } else {
-    clearBtn.classList.remove('visible');
-    filteredEpisodes = [...episodesList];
-  }
-  
-  renderEpisodes();
+    const searchTerm = e.target.value.toLowerCase().trim();
+    const clearBtn = document.getElementById('clearSearch');
+
+    if (searchTerm) {
+        clearBtn.classList.add('visible');
+        filteredEpisodes = episodesList.filter(ep => 
+            ep.episode_no.toString().includes(searchTerm) ||
+            (ep.title && ep.title.toLowerCase().includes(searchTerm)) ||
+            (ep.japanese_title && ep.japanese_title.toLowerCase().includes(searchTerm))
+        );
+    } else {
+        clearBtn.classList.remove('visible');
+        filteredEpisodes = [...episodesList];
+    }
+
+    renderEpisodes();
 }
 
 // Render episode buttons
 function renderEpisodes() {
-  const grid = document.getElementById("episodes-grid");
-  
-  if (filteredEpisodes.length === 0) {
-    grid.innerHTML = '<div class="no-results"><i class="fas fa-search"></i> No episodes found</div>';
-    return;
-  }
-  
-  grid.innerHTML = filteredEpisodes.map((ep, i) => {
-    const epId = ep.data_id || ep.id;
-    const originalIndex = episodesList.findIndex(e => (e.data_id || e.id) === epId);
-    const isActive = originalIndex === currentEpIndex;
-    const fillerClass = ep.filler ? 'filler' : '';
-    const watchedClass = isWatched(ep.episode_no) ? 'watched' : '';
-    
-    return `
-      <button class="ep-btn ${fillerClass} ${watchedClass} ${isActive ? 'active' : ''}" 
-              onclick="changeEpisode(${originalIndex})"
-              title="${ep.title || ''}">
-        ${ep.episode_no}
-      </button>
-    `;
-  }).join("");
-  
-  updateNavButtons();
+    const grid = document.getElementById("episodes-grid");
+
+    if (filteredEpisodes.length === 0) {
+        grid.innerHTML = '<div class="no-results"><i class="fas fa-search"></i> No episodes found</div>';
+        return;
+    }
+
+    grid.innerHTML = filteredEpisodes.map((ep, i) => {
+        const epId = ep.data_id || ep.id;
+        const originalIndex = episodesList.findIndex(e => (e.data_id || e.id) === epId);
+        const isActive = originalIndex === currentEpIndex;
+        const fillerClass = ep.filler ? 'filler' : '';
+        const watchedClass = isWatched(ep.episode_no) ? 'watched' : '';
+
+        return `
+            <button class="ep-btn ${fillerClass} ${watchedClass} ${isActive ? 'active' : ''}" 
+                    onclick="changeEpisode(${originalIndex})"
+                    title="${ep.title || ''}">
+                ${ep.episode_no}
+            </button>
+        `;
+    }).join("");
+
+    updateNavButtons();
 }
 
 // Update anime info container
 function updateAnimeInfoContainer(ep) {
-  document.getElementById('animeDisplayName').textContent = formatTitle(animeId);
-  document.getElementById('currentEpNumber').textContent = ep.episode_no;
-  document.getElementById('currentEpTitle').textContent = ep.title || `Episode ${ep.episode_no}`;
-  document.getElementById('currentEpJpTitle').textContent = ep.japanese_title || '';
-  document.getElementById("ep-title").textContent = `Episode ${ep.episode_no}`;
-  
-  // Mark as watching
-  markAsWatched(ep.episode_no);
+    document.getElementById('animeDisplayName').textContent = formatTitle(animeId);
+    document.getElementById('currentEpNumber').textContent = ep.episode_no;
+    document.getElementById('currentEpTitle').textContent = ep.title || `Episode ${ep.episode_no}`;
+    document.getElementById('currentEpJpTitle').textContent = ep.japanese_title || '';
+    document.getElementById("ep-title").textContent = `Episode ${ep.episode_no}`;
+
+    // Mark as watching
+    markAsWatched(ep.episode_no);
 }
 
 // Handle episode change
 function changeEpisode(index) {
-  if (!episodesList[index] || index === currentEpIndex) return;
-  
-  const ep = episodesList[index];
-  currentEpIndex = index;
-  
-  // Update URL
-  updateURL(ep.data_id || ep.id);
-  
-  // Update UI
-  renderEpisodes();
-  updateAnimeInfoContainer(ep);
-  
-  // Load stream with current server/type
-  loadStream(ep.data_id || ep.id, currentServer, currentType);
-  
-  // Clear search
-  document.getElementById('episodeSearch').value = '';
-  document.getElementById('clearSearch').classList.remove('visible');
-  filteredEpisodes = [...episodesList];
+    if (!episodesList[index] || index === currentEpIndex) return;
+
+    const ep = episodesList[index];
+    currentEpIndex = index;
+
+    // Update URL
+    updateURL(ep.data_id || ep.id);
+
+    // Update UI
+    renderEpisodes();
+    updateAnimeInfoContainer(ep);
+
+    // Load stream with current server/type
+    loadStream(ep.data_id || ep.id, currentServer, currentType);
+
+    // Clear search
+    document.getElementById('episodeSearch').value = '';
+    document.getElementById('clearSearch').classList.remove('visible');
+    filteredEpisodes = [...episodesList];
 }
 
 // Update nav buttons
 function updateNavButtons() {
-  const prevBtn = document.getElementById("prevEp");
-  const nextBtn = document.getElementById("nextEp");
-  
-  prevBtn.disabled = currentEpIndex === 0;
-  nextBtn.disabled = currentEpIndex === episodesList.length - 1;
+    const prevBtn = document.getElementById("prevEp");
+    const nextBtn = document.getElementById("nextEp");
+
+    prevBtn.disabled = currentEpIndex === 0;
+    nextBtn.disabled = currentEpIndex === episodesList.length - 1;
 }
 
 // Navigation
 document.getElementById("prevEp").onclick = () => {
-  if (currentEpIndex > 0) changeEpisode(currentEpIndex - 1);
+    if (currentEpIndex > 0) changeEpisode(currentEpIndex - 1);
 };
 
 document.getElementById("nextEp").onclick = () => {
-  if (currentEpIndex < episodesList.length - 1) changeEpisode(currentEpIndex + 1);
+    if (currentEpIndex < episodesList.length - 1) changeEpisode(currentEpIndex + 1);
 };
 
 // Keyboard shortcuts
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey) {
-    e.preventDefault();
-    if (currentEpIndex > 0) changeEpisode(currentEpIndex - 1);
-  } else if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey) {
-    e.preventDefault();
-    if (currentEpIndex < episodesList.length - 1) changeEpisode(currentEpIndex + 1);
-  } else if (e.key === 'f' && e.ctrlKey) {
-    e.preventDefault();
-    document.getElementById('episodeSearch').focus();
-  } else if (e.key === 'Escape') {
-    document.getElementById('episodeSearch').blur();
-  }
+    // Don't trigger if user is typing in search
+    if (document.activeElement === document.getElementById('episodeSearch')) {
+        return;
+    }
+    
+    if (e.key === 'ArrowLeft' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        if (currentEpIndex > 0) changeEpisode(currentEpIndex - 1);
+    } else if (e.key === 'ArrowRight' && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        if (currentEpIndex < episodesList.length - 1) changeEpisode(currentEpIndex + 1);
+    }
+});
+
+// Search keyboard shortcuts
+document.getElementById('episodeSearch').addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        e.target.blur();
+        document.getElementById('clearSearch').click();
+    }
 });
 
 // Make retry function global
 window.retryCurrentServer = retryCurrentServer;
 
-// Initialize
-loadEpisodes();
+// Initialize with error handling
+document.addEventListener('DOMContentLoaded', () => {
+    loadEpisodes().catch(error => {
+        console.error('Failed to initialize:', error);
+    });
+});
 </script>
 </body>
 </html>
