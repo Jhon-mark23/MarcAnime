@@ -197,6 +197,7 @@
       font-weight: 600;
       margin-top: 1rem;
       padding: 0 1.5rem;
+      cursor: pointer;
     }
 
     /* Episode header - mobile */
@@ -631,9 +632,9 @@
     <div id="playerFallback" class="player-fallback hidden">
       <i class="fas fa-exclamation-triangle"></i>
       <h3>Video Not Loading</h3>
-      <p>Try switching servers below</p>
+      <p>Try selecting a different server below</p>
       <button onclick="retryCurrentServer()">
-        <i class="fas fa-redo"></i> Retry
+        <i class="fas fa-redo"></i> Retry Current
       </button>
     </div>
   </div>
@@ -726,12 +727,11 @@ let currentEpIndex = 0;
 let currentServer = "hd-2";
 let currentType = "sub";
 let watchHistory = JSON.parse(localStorage.getItem(`watch_${animeId}`)) || [];
-let serverRetryCount = 0;
-const MAX_RETRIES = 3;
 let videoPlayer = null;
 let introStart = null;
 let introEnd = null;
 let skipTimeout = null;
+let isLoading = false;
 
 // Initialize video.js player (HLS only)
 function initHlsPlayer() {
@@ -776,16 +776,23 @@ function initHlsPlayer() {
             }
         });
 
-        // Error handling
+        // Error handling - NO AUTO SWITCH, just show fallback
         videoPlayer.on('error', () => {
             console.error('Video.js error:', videoPlayer.error());
-            playerFallback.classList.remove('hidden');
+            if (!isLoading) {
+                playerFallback.classList.remove('hidden');
+            }
         });
 
         // Success handling
         videoPlayer.on('loadedmetadata', () => {
             playerFallback.classList.add('hidden');
-            serverRetryCount = 0;
+            isLoading = false;
+        });
+
+        // Waiting for data
+        videoPlayer.on('waiting', () => {
+            // Don't show fallback on buffering
         });
     }
     return videoPlayer;
@@ -839,15 +846,19 @@ function isWatched(episodeNo) {
     return watchHistory.includes(episodeNo);
 }
 
-// Load stream with HLS only
+// Load stream with HLS only - NO AUTO SWITCHING
 async function loadStream(epId, server = currentServer, type = currentType) {
+    if (isLoading) return;
+    
     try {
+        isLoading = true;
+        playerFallback.classList.add('hidden');
+        
         if (videoPlayer) {
             videoPlayer.src({ type: 'application/x-mpegURL', src: '' });
         }
-        playerFallback.classList.add('hidden');
+        
         hideSkipPopup();
-        serverRetryCount = 0;
 
         currentServer = server;
         currentType = type;
@@ -884,9 +895,12 @@ async function loadStream(epId, server = currentServer, type = currentType) {
             // Add subtitles if available
             if (stream.tracks && stream.tracks.length > 0) {
                 // Remove old tracks
-                videoPlayer.remoteTextTracks().forEach(track => {
-                    videoPlayer.removeRemoteTextTrack(track);
-                });
+                if (videoPlayer.remoteTextTracks) {
+                    const tracks = videoPlayer.remoteTextTracks();
+                    for (let i = tracks.length - 1; i >= 0; i--) {
+                        videoPlayer.removeRemoteTextTrack(tracks[i]);
+                    }
+                }
                 
                 // Add new tracks
                 stream.tracks.forEach(track => {
@@ -902,32 +916,21 @@ async function loadStream(epId, server = currentServer, type = currentType) {
                 });
             }
             
+            // Don't autoplay to prevent issues
             videoPlayer.play().catch(e => {
                 console.log('Autoplay prevented:', e);
-                // Show play button is enough
             });
         } else {
             throw new Error("No HLS stream available");
         }
 
         renderServers(json.results.servers, epId);
+        isLoading = false;
 
     } catch (e) {
         console.error('❌ Stream error:', e);
         playerFallback.classList.remove('hidden');
-        
-        if (serverRetryCount < MAX_RETRIES) {
-            serverRetryCount++;
-            const servers = ['hd-1', 'hd-2', 'hd-3'];
-            const types = ['sub', 'dub'];
-            const currentServerIndex = servers.indexOf(currentServer);
-            const nextServer = servers[(currentServerIndex + 1) % servers.length];
-            const nextType = serverRetryCount % 2 === 0 ? 'dub' : 'sub';
-            
-            setTimeout(() => {
-                loadStream(epId, nextServer, nextType);
-            }, 1000);
-        }
+        isLoading = false;
     }
 }
 
@@ -935,7 +938,6 @@ function retryCurrentServer() {
     const ep = episodesList[currentEpIndex];
     if (ep) {
         playerFallback.classList.add('hidden');
-        serverRetryCount = 0;
         loadStream(ep.data_id || ep.id, currentServer, currentType);
     }
 }
@@ -1068,7 +1070,7 @@ function updateAnimeInfoContainer(ep) {
 }
 
 function changeEpisode(index) {
-    if (!episodesList[index] || index === currentEpIndex) return;
+    if (!episodesList[index] || index === currentEpIndex || isLoading) return;
     
     const ep = episodesList[index];
     currentEpIndex = index;
@@ -1087,8 +1089,8 @@ function changeEpisode(index) {
 function updateNavButtons() {
     const prevBtn = document.getElementById("prevEp");
     const nextBtn = document.getElementById("nextEp");
-    prevBtn.disabled = currentEpIndex === 0;
-    nextBtn.disabled = currentEpIndex === episodesList.length - 1;
+    prevBtn.disabled = currentEpIndex === 0 || isLoading;
+    nextBtn.disabled = currentEpIndex === episodesList.length - 1 || isLoading;
 }
 
 // Navigation
