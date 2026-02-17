@@ -42,8 +42,7 @@ export default async function handler(req, res) {
           'Accept-Language': 'en-US,en;q=0.9',
           'Referer': 'https://hianime.to/',
           'Origin': 'https://hianime.to',
-          'X-Requested-With': 'XMLHttpRequest',
-          'Connection': 'keep-alive'
+          'X-Requested-With': 'XMLHttpRequest'
         }
       }
     );
@@ -52,79 +51,66 @@ export default async function handler(req, res) {
       throw new Error(`Failed to fetch episode sources: ${episodeResponse.status} ${episodeResponse.statusText}`);
     }
 
-    const episodeData = await episodeResponse.json();
-
-    // Extract sources from the response
-    const sources = episodeData?.sources || [];
-    const tracks = episodeData?.tracks || [];
-
-    // If sources is a string (sometimes it comes as JSON string), parse it
-    let parsedSources = sources;
-    if (typeof sources === 'string') {
-      try {
-        parsedSources = JSON.parse(sources);
-      } catch (e) {
-        console.error('Failed to parse sources string:', e);
-      }
-    }
-
-    // Process sources to ensure they have proper format
-    const processedSources = Array.isArray(parsedSources) ? parsedSources.map((source, index) => {
-      if (typeof source === 'string') {
-        return {
-          file: source,
-          label: `Server ${index + 1}`,
-          server: `server${index + 1}`,
-          type: 'hls'
-        };
-      }
-      return {
-        file: source.file || source.url || '',
-        label: source.label || `Server ${index + 1}`,
-        server: source.server || `server${index + 1}`,
-        type: source.type || 'hls'
-      };
-    }) : [];
-
-    // Server selection logic
-    let selectedSource = null;
-    if (server && processedSources.length > 0) {
-      const serverLower = server.toLowerCase();
-      
-      // Try different matching strategies
-      selectedSource = processedSources.find(source => 
-        source.server?.toLowerCase() === serverLower ||
-        source.label?.toLowerCase() === serverLower ||
-        source.label?.toLowerCase().includes(serverLower)
-      );
-
-      // If no match found by name, try by index
-      if (!selectedSource && !isNaN(parseInt(server))) {
-        const index = parseInt(server);
-        if (index >= 0 && index < processedSources.length) {
-          selectedSource = processedSources[index];
-        }
-      }
-    }
-
-    // Prepare response data
+    const data = await episodeResponse.json();
+    
+    // Handle the actual response structure
     const responseData = {
       success: true,
       episodeId: id,
-      sources: processedSources,
-      tracks: tracks,
-      selectedServer: selectedSource || (processedSources.length > 0 ? processedSources[0] : null),
-      availableServers: processedSources.map((source, index) => ({
-        server: source.server || `server${index + 1}`,
-        label: source.label || `Server ${index + 1}`,
-        file: source.file,
-        type: source.type || 'hls'
-      }))
+      type: data.type || 'iframe',
+      link: data.link || null,
+      server: data.server || null,
+      embedData: null,
+      sources: [],
+      tracks: []
     };
 
-    // Add helpful message if server was requested but not found
-    if (server && !selectedSource && processedSources.length > 0) {
-      responseData.message = `Server '${server}' not found. Available servers: ${processedSources.map(s => s.label || s.server).join(', ')}`;
+    // If there's an iframe link, try to fetch its content
+    if (data.link) {
+      try {
+        // Attempt to fetch the iframe content to get actual video sources
+        const embedResponse = await fetch(data.link, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Referer': 'https://hianime.to/'
+          }
+        });
+
+        if (embedResponse.ok) {
+          const embedHtml = await embedResponse.text();
+          
+          // Try to extract video sources from the embed HTML
+          // This is a simple example - you might need more sophisticated parsing
+          const sourceMatches = embedHtml.match(/source src="([^"]+)"|file:"([^"]+)"|url:"([^"]+)"/g);
+          
+          if (sourceMatches) {
+            responseData.embedData = {
+              html: embedHtml.substring(0, 500) + '...', // First 500 chars
+              sourceCount: sourceMatches.length
+            };
+          }
+        }
+      } catch (embedError) {
+        console.error('Error fetching embed:', embedError.message);
+        responseData.embedError = embedError.message;
+      }
+    }
+
+    // If there are sources in the response, use them
+    if (data.sources && data.sources.length > 0) {
+      responseData.sources = data.sources;
+    }
+
+    // If there are tracks in the response, use them
+    if (data.tracks && data.tracks.length > 0) {
+      responseData.tracks = data.tracks;
+    }
+
+    // Add a note about the iframe structure
+    if (data.type === 'iframe' && data.link) {
+      responseData.note = 'This episode uses an iframe embed. The actual video source is at the link URL. You may need to extract the video URL from the embedded page.';
     }
 
     // Return the response
