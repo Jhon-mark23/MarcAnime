@@ -1,0 +1,25 @@
+{
+  "name": "Jhon Marc Martinez",
+  "version": "1.0.0",
+  "description": "Anime streaming application",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": ["anime", "streaming", "express"],
+  "author": "MarcAnime",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.2",
+    "express": "^4.22.1",
+    "m3u8-parser": "^5.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}
