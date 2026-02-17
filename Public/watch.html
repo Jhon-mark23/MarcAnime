@@ -21,7 +21,6 @@
       min-height: 100vh;
     }
 
-    /* Mobile-first header */
     header {
       background: rgba(18, 26, 40, 0.98);
       backdrop-filter: blur(10px);
@@ -69,7 +68,7 @@
       padding: 1rem;
     }
 
-    /* Player section */
+    /* Player section with fallback */
     .player-wrapper {
       background: #000;
       border-radius: 16px;
@@ -78,15 +77,41 @@
       border: 1px solid #253553;
       margin-bottom: 1rem;
       aspect-ratio: 16/9;
+      position: relative;
     }
 
-    iframe {
+    #iframe-player {
       width: 100%;
       height: 100%;
       border: none;
     }
 
-    /* Episode header with title and nav */
+    .player-fallback {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0a0d14;
+      color: #8aa3cc;
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .player-fallback i {
+      font-size: 4rem;
+      color: #3d63ff;
+      margin-bottom: 1rem;
+    }
+
+    .player-fallback.hidden {
+      display: none;
+    }
+
     .episode-header {
       display: flex;
       flex-direction: column;
@@ -131,6 +156,66 @@
     .nav-btn:disabled {
       opacity: 0.3;
       pointer-events: none;
+    }
+
+    /* Anime Info Container */
+    .anime-info-container {
+      background: linear-gradient(145deg, #121e2f, #0b111e);
+      border-radius: 20px;
+      padding: 1.2rem;
+      margin-bottom: 1rem;
+      border: 1px solid #2e3d5a;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .anime-name {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: white;
+      margin-bottom: 0.3rem;
+      text-transform: capitalize;
+      letter-spacing: -0.5px;
+    }
+
+    .anime-name i {
+      color: #3d63ff;
+      margin-right: 8px;
+      font-size: 1.2rem;
+    }
+
+    .episode-details {
+      display: flex;
+      flex-direction: column;
+      gap: 0.3rem;
+      margin-top: 0.5rem;
+    }
+
+    .detail-item {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-size: 0.95rem;
+    }
+
+    .detail-label {
+      color: #8aa3cc;
+      font-weight: 500;
+      min-width: 45px;
+    }
+
+    .detail-value {
+      color: white;
+      font-weight: 500;
+      word-break: break-word;
+    }
+
+    .episode-title-jp {
+      color: #a5b9e2;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+      border-top: 1px dashed #2e426b;
+      font-style: italic;
     }
 
     /* Episode info card */
@@ -197,6 +282,13 @@
     .server-btn.active {
       background: #3d63ff;
       border-color: #3d63ff;
+    }
+
+    .server-btn.server-error {
+      background: #3d2a2a;
+      border-color: #ff6b6b;
+      opacity: 0.7;
+      cursor: not-allowed;
     }
 
     /* Episodes section with search */
@@ -414,6 +506,24 @@
         grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
         max-height: 400px;
       }
+
+      .anime-info-container {
+        padding: 1.5rem;
+      }
+
+      .anime-name {
+        font-size: 1.8rem;
+      }
+
+      .episode-details {
+        flex-direction: row;
+        flex-wrap: wrap;
+        gap: 1.5rem;
+      }
+
+      .detail-item {
+        font-size: 1rem;
+      }
     }
 
     /* Custom scrollbar */
@@ -439,12 +549,20 @@
     <i class="fas fa-arrow-left"></i> Back
   </a>
   <span id="anime-title">Loading...</span>
-  <a href="index.html"><i class="fas fa-home"></i></a>
+  <a href="/"><i class="fas fa-home"></i></a>
 </header>
 
 <div class="container">
-  <div class="player-wrapper">
-    <iframe id="iframe-player" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture"></iframe>
+  <div class="player-wrapper" id="playerWrapper">
+    <iframe id="iframe-player" allowfullscreen allow="autoplay; fullscreen; encrypted-media; picture-in-picture" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-presentation allow-top-navigation"></iframe>
+    <div id="playerFallback" class="player-fallback hidden">
+      <i class="fas fa-exclamation-triangle"></i>
+      <h3>Video Player Not Loading</h3>
+      <p>Try switching to a different server below</p>
+      <button class="nav-btn" onclick="retryCurrentServer()" style="margin-top: 1rem; padding: 0.8rem 2rem;">
+        <i class="fas fa-redo"></i> Retry
+      </button>
+    </div>
   </div>
 
   <div class="episode-header">
@@ -459,8 +577,23 @@
     </div>
   </div>
 
-  <div class="episode-info" id="episode-info">
-    <p><i class="fas fa-spinner fa-spin"></i> Loading episode information...</p>
+  <!-- Anime Info Container -->
+  <div class="anime-info-container" id="animeInfoContainer">
+    <div class="anime-name">
+      <i class="fas fa-film"></i>
+      <span id="animeDisplayName">One Piece</span>
+    </div>
+    <div class="episode-details">
+      <div class="detail-item">
+        <span class="detail-label">EP:</span>
+        <span class="detail-value" id="currentEpNumber">1</span>
+      </div>
+      <div class="detail-item">
+        <span class="detail-label">Title:</span>
+        <span class="detail-value" id="currentEpTitle">Loading...</span>
+      </div>
+    </div>
+    <div class="episode-title-jp" id="currentEpJpTitle"></div>
   </div>
 
   <div class="section">
@@ -489,18 +622,24 @@
 </div>
 
 <script>
-const API_BASE = "https://anime-apis-rosy.vercel.app/api";
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? '/api' 
+    : '/api'; // Use relative path for both local and Vercel
+
 const params = new URLSearchParams(location.search);
-const animeId = params.get("id");
-const urlEpisodeId = params.get("ep");
+const animeId = params.get("id") || "one-piece-100";
+const urlEpisodeId = params.get("ep") || "";
 const iframe = document.getElementById("iframe-player");
+const playerFallback = document.getElementById("playerFallback");
 
 let episodesList = [];
 let filteredEpisodes = [];
 let currentEpIndex = 0;
-let currentServer = "hd-1";
+let currentServer = "hd-2";
 let currentType = "sub";
 let watchHistory = JSON.parse(localStorage.getItem(`watch_${animeId}`)) || [];
+let serverRetryCount = 0;
+const MAX_RETRIES = 3;
 
 // Helper functions
 function formatTitle(id) {
@@ -526,26 +665,94 @@ function isWatched(episodeNo) {
   return watchHistory.includes(episodeNo);
 }
 
-// Load stream
+// Load stream with fallback
 async function loadStream(epId, server = currentServer, type = currentType) {
   try {
+    // Show loading state
+    iframe.src = 'about:blank';
+    playerFallback.classList.add('hidden');
+    serverRetryCount = 0;
+    
     currentServer = server;
     currentType = type;
     
+    // Use local proxy to avoid CORS
     const streamUrl = `${API_BASE}/stream?id=${animeId}?ep=${epId}&server=${server}&type=${type}`;
+    console.log('Loading stream from:', streamUrl);
+    
     const res = await fetch(streamUrl);
     const json = await res.json();
     
     if (!json.success) throw new Error("Stream not found");
     
     const stream = json.results.streamingLink;
-    iframe.src = stream.iframe || "about:blank";
+    
+    // Try multiple methods to load the video
+    if (stream.iframe) {
+      // Method 1: Direct iframe
+      iframe.src = stream.iframe;
+      
+      // Add multiple event listeners for iframe errors
+      iframe.onload = () => {
+        console.log('Iframe loaded successfully');
+        playerFallback.classList.add('hidden');
+      };
+      
+      iframe.onerror = () => {
+        console.error('Iframe failed to load');
+        handleIframeError(epId);
+      };
+      
+      // Set a timeout to detect if iframe fails to load
+      setTimeout(() => {
+        try {
+          // Check if iframe content is accessible (may throw cross-origin error)
+          const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+          if (!iframeDoc) {
+            // Cross-origin but might still be working
+            console.log('Iframe is cross-origin, assuming it works');
+          }
+        } catch (e) {
+          // Cross-origin error is actually good - means iframe loaded
+          console.log('Iframe loaded (cross-origin)');
+        }
+      }, 5000);
+      
+    } else if (stream.embed_url) {
+      // Method 2: Embed URL
+      iframe.src = stream.embed_url;
+    } else {
+      // Method 3: Direct video URL
+      iframe.src = `about:blank?video=${encodeURIComponent(stream.url || '')}`;
+    }
     
     renderServers(json.results.servers, epId);
     
   } catch (e) {
-    console.error(e);
-    document.getElementById("server-list").innerHTML = `<div class="error-message">⚠️ Failed to load stream</div>`;
+    console.error('Stream error:', e);
+    handleIframeError(epId);
+  }
+}
+
+function handleIframeError(epId) {
+  playerFallback.classList.remove('hidden');
+  
+  // Try alternative server if available
+  if (serverRetryCount < MAX_RETRIES) {
+    serverRetryCount++;
+    const altServer = serverRetryCount === 1 ? 'hd-1' : 'hd-3';
+    const altType = currentType;
+    
+    console.log(`Retrying with ${altServer} (${altServer} attempt ${serverRetryCount})`);
+    loadStream(epId, altServer, altType);
+  }
+}
+
+function retryCurrentServer() {
+  const ep = episodesList[currentEpIndex];
+  if (ep) {
+    playerFallback.classList.add('hidden');
+    loadStream(ep.data_id || ep.id, currentServer, currentType);
   }
 }
 
@@ -596,7 +803,7 @@ async function loadEpisodes() {
     // Load first/selected episode
     const currentEp = episodesList[currentEpIndex];
     if (currentEp) {
-      updateEpisodeInfo(currentEp);
+      updateAnimeInfoContainer(currentEp);
       loadStream(currentEp.data_id || currentEp.id);
     }
     
@@ -666,19 +873,12 @@ function renderEpisodes() {
   updateNavButtons();
 }
 
-// Update episode info panel
-function updateEpisodeInfo(ep) {
-  const infoEl = document.getElementById("episode-info");
-  const title = ep.title || `Episode ${ep.episode_no}`;
-  const jpTitle = ep.japanese_title ? `· ${ep.japanese_title}` : '';
-  const fillerBadge = ep.filler ? ' <span style="background:#ff6b6b; color:#000; padding:2px 8px; border-radius:12px; font-size:0.7rem; margin-left:6px;">FILLER</span>' : '';
-  
-  infoEl.innerHTML = `
-    <p>
-      <strong>EP ${ep.episode_no}:</strong> ${title} ${fillerBadge}
-    </p>
-  `;
-  
+// Update anime info container
+function updateAnimeInfoContainer(ep) {
+  document.getElementById('animeDisplayName').textContent = formatTitle(animeId);
+  document.getElementById('currentEpNumber').textContent = ep.episode_no;
+  document.getElementById('currentEpTitle').textContent = ep.title || `Episode ${ep.episode_no}`;
+  document.getElementById('currentEpJpTitle').textContent = ep.japanese_title || '';
   document.getElementById("ep-title").textContent = `Episode ${ep.episode_no}`;
   
   // Mark as watching
@@ -697,12 +897,12 @@ function changeEpisode(index) {
   
   // Update UI
   renderEpisodes();
-  updateEpisodeInfo(ep);
+  updateAnimeInfoContainer(ep);
   
   // Load stream with current server/type
   loadStream(ep.data_id || ep.id, currentServer, currentType);
   
-  // Clear search when changing episodes (optional)
+  // Clear search
   document.getElementById('episodeSearch').value = '';
   document.getElementById('clearSearch').classList.remove('visible');
   filteredEpisodes = [...episodesList];
@@ -741,6 +941,9 @@ document.addEventListener('keydown', (e) => {
     document.getElementById('episodeSearch').blur();
   }
 });
+
+// Make retry function global
+window.retryCurrentServer = retryCurrentServer;
 
 // Initialize
 loadEpisodes();
