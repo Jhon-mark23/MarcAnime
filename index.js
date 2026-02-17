@@ -1,7 +1,6 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
-const cheerio = require('cheerio'); // You'll need to install this: npm install cheerio
 
 const app = express();
 
@@ -31,15 +30,14 @@ app.get('/api', async (req, res) => {
     const isVideoRequest = decodedUrl.includes('.mp4') || 
                           decodedUrl.includes('.m3u8') || 
                           decodedUrl.includes('.ts') ||
-                          decodedUrl.includes('video') ||
-                          decodedUrl.includes('embed');
+                          decodedUrl.includes('video');
 
     console.log(`Proxying ${isMegacloud ? 'Megacloud' : ''} request to:`, decodedUrl);
 
     // Set appropriate headers based on target domain
     const headers = {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
       'Accept-Language': 'en-US,en;q=0.9',
       'Accept-Encoding': 'gzip, deflate, br',
       'Connection': 'keep-alive',
@@ -48,10 +46,7 @@ app.get('/api', async (req, res) => {
       'Sec-Fetch-Mode': 'navigate',
       'Sec-Fetch-Site': 'cross-site',
       'Pragma': 'no-cache',
-      'Cache-Control': 'no-cache',
-      'sec-ch-ua': '"Google Chrome";v="119", "Chromium";v="119", "Not?A_Brand";v="24"',
-      'sec-ch-ua-mobile': '?0',
-      'sec-ch-ua-platform': '"Windows"'
+      'Cache-Control': 'no-cache'
     };
 
     // Add domain-specific headers
@@ -59,17 +54,6 @@ app.get('/api', async (req, res) => {
       headers['Referer'] = 'https://megacloud.blog/';
       headers['Origin'] = 'https://megacloud.blog';
       headers['Host'] = new URL(decodedUrl).hostname;
-    } else if (decodedUrl.includes('hianime.to')) {
-      headers['Referer'] = 'https://hianime.to/';
-      headers['Origin'] = 'https://hianime.to';
-    } else if (decodedUrl.includes('rapid-cloud.co')) {
-      headers['Referer'] = 'https://rapid-cloud.co/';
-      headers['Origin'] = 'https://rapid-cloud.co';
-    }
-
-    // Handle range requests for video streaming
-    if (req.headers.range) {
-      headers['Range'] = req.headers.range;
     }
 
     // Make the proxy request
@@ -82,8 +66,7 @@ app.get('/api', async (req, res) => {
       validateStatus: function (status) {
         return status >= 200 && status < 500;
       },
-      timeout: 30000,
-      withCredentials: true
+      timeout: 30000
     });
 
     // Copy relevant headers from the target response
@@ -93,15 +76,9 @@ app.get('/api', async (req, res) => {
       'content-range',
       'accept-ranges',
       'cache-control',
-      'expires',
-      'last-modified',
-      'etag',
       'set-cookie',
       'cf-cache-status',
-      'cf-ray',
-      'alt-svc',
-      'strict-transport-security',
-      'x-content-type-options'
+      'cf-ray'
     ];
 
     headersToCopy.forEach(header => {
@@ -120,197 +97,95 @@ app.get('/api', async (req, res) => {
     res.setHeader('Cross-Origin-Opener-Policy', 'unsafe-none');
     res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
 
-    // For Megacloud embeds, we might want to extract the actual video URL
-    if (isMegacloud && response.headers['content-type']?.includes('text/html')) {
-      const html = response.data.toString('utf-8');
+    // Handle HTML responses (like Megacloud embeds)
+    if (response.headers['content-type']?.includes('text/html')) {
+      let html = response.data.toString('utf-8');
       
-      // Try to extract video data from the HTML
-      const videoData = extractVideoData(html, decodedUrl);
-      
-      if (videoData) {
-        // Return extracted video data as JSON
-        res.setHeader('Content-Type', 'application/json');
-        return res.json({
-          type: 'megacloud_embed',
-          originalUrl: decodedUrl,
-          videoData: videoData,
-          html: html // Include original HTML if needed
-        });
+      // For Megacloud embeds, modify the HTML to work through proxy
+      if (isMegacloud) {
+        html = modifyMegacloudHtml(html, decodedUrl);
+      } else {
+        // General HTML modification
+        html = modifyHtmlUrls(html, decodedUrl);
       }
+      
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.send(html);
     }
 
-    // Handle video streaming responses
+    // Handle video streaming
     if (isVideoRequest || response.headers['content-type']?.includes('video') || 
         response.headers['content-type']?.includes('application/vnd.apple.mpegurl')) {
       
-      // Set proper content type if not already set
       if (!res.getHeader('content-type')) {
         if (decodedUrl.includes('.m3u8')) {
           res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
         } else if (decodedUrl.includes('.mp4')) {
           res.setHeader('Content-Type', 'video/mp4');
-        } else if (decodedUrl.includes('.ts')) {
-          res.setHeader('Content-Type', 'video/MP2T');
         }
       }
 
-      // Handle range requests (partial content)
       if (req.headers.range) {
         res.status(206);
       }
 
-      // Convert buffer to stream for video
       const stream = require('stream');
       const bufferStream = new stream.PassThrough();
       bufferStream.end(Buffer.from(response.data));
       
-      bufferStream.pipe(res);
-      
-      bufferStream.on('error', (err) => {
-        console.error('Stream error:', err);
-        if (!res.headersSent) {
-          res.status(500).json({ error: 'Stream failed', message: err.message });
-        }
-      });
-    } else {
-      // Handle HTML/JSON/text responses
-      if (response.headers['content-type']?.includes('application/json')) {
-        try {
-          const jsonData = JSON.parse(response.data.toString('utf-8'));
-          res.json(jsonData);
-        } catch {
-          res.setHeader('Content-Type', 'application/json');
-          res.send(response.data);
-        }
-      } else if (response.headers['content-type']?.includes('text/html')) {
-        // For HTML responses, we might want to modify links to go through proxy
-        let html = response.data.toString('utf-8');
-        
-        // Modify resource URLs to go through proxy if needed
-        html = modifyHtmlUrls(html, decodedUrl);
-        
-        res.setHeader('Content-Type', 'text/html; charset=utf-8');
-        res.send(html);
-      } else {
-        // Send as is
-        res.send(response.data);
+      return bufferStream.pipe(res);
+    }
+
+    // Handle JSON responses
+    if (response.headers['content-type']?.includes('application/json')) {
+      try {
+        const jsonData = JSON.parse(response.data.toString('utf-8'));
+        return res.json(jsonData);
+      } catch {
+        return res.send(response.data);
       }
     }
+
+    // Default: send as is
+    res.send(response.data);
 
   } catch (error) {
     console.error('Proxy error:', error.message);
-    console.error('Error details:', error.response?.data || 'No response data');
     
-    if (error.code === 'ECONNABORTED') {
-      res.status(504).json({ error: 'Proxy timeout', message: 'The request timed out' });
-    } else if (error.response) {
-      res.status(error.response.status).json({
-        error: 'Target server error',
-        status: error.response.status,
-        message: error.message,
-        data: error.response.data ? error.response.data.toString().substring(0, 500) : null
-      });
-    } else if (error.request) {
-      res.status(502).json({ error: 'No response from target', message: error.message });
-    } else {
-      res.status(500).json({ error: 'Proxy failed', message: error.message });
+    // Return an error HTML page for iframe requests
+    if (req.headers.accept?.includes('text/html')) {
+      return res.status(500).send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>Proxy Error</title>
+          <style>
+            body { font-family: Arial; background: #1a1a2e; color: white; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+            .error { text-align: center; padding: 20px; background: #16213e; border-radius: 10px; border: 1px solid #ff4444; }
+            h2 { color: #ff4444; }
+            p { color: #888; }
+          </style>
+        </head>
+        <body>
+          <div class="error">
+            <h2>❌ Proxy Error</h2>
+            <p>${error.message}</p>
+          </div>
+        </body>
+        </html>
+      `);
     }
+    
+    res.status(500).json({ error: 'Proxy failed', message: error.message });
   }
 });
 
-// Helper function to extract video data from Megacloud embed
-function extractVideoData(html, originalUrl) {
-  try {
-    const $ = cheerio.load(html);
-    
-    // Look for video data in script tags
-    const scripts = $('script').map((i, el) => $(el).html()).get();
-    
-    let videoData = null;
-    let playerSettings = null;
-    let playerScript = null;
-    
-    scripts.forEach(script => {
-      if (script && script.includes('playerSettings')) {
-        const match = script.match(/window\.playerSettings\s*=\s*({[^;]+})/);
-        if (match) {
-          try {
-            playerSettings = JSON.parse(match[1].replace(/'/g, '"'));
-          } catch (e) {
-            console.log('Error parsing playerSettings:', e);
-          }
-        }
-      }
-      
-      if (script && script.includes('jwplayer')) {
-        playerScript = script;
-      }
-    });
-    
-    // Extract the embed ID from URL
-    const idMatch = originalUrl.match(/\/e-1\/([^\/?]+)/);
-    const embedId = idMatch ? idMatch[1] : null;
-    
-    // Get data attributes from player div
-    const playerDiv = $('#megacloud-player');
-    const dataId = playerDiv.data('id');
-    const realId = playerDiv.data('realid');
-    const mediaId = playerDiv.data('mediaid');
-    
-    videoData = {
-      embedId: embedId,
-      dataId: dataId,
-      realId: realId,
-      mediaId: mediaId,
-      playerSettings: playerSettings,
-      hasPlayerScript: !!playerScript
-    };
-    
-    return videoData;
-  } catch (e) {
-    console.error('Error extracting video data:', e);
-    return null;
-  }
-}
-
-// Helper function to modify URLs in HTML to go through proxy
-function modifyHtmlUrls(html, baseUrl) {
-  try {
-    const $ = cheerio.load(html);
-    
-    // Modify resource URLs
-    $('link[rel="stylesheet"]').each((i, el) => {
-      const href = $(el).attr('href');
-      if (href && !href.startsWith('http')) {
-        const absoluteUrl = new URL(href, baseUrl).toString();
-        $(el).attr('href', `/api?url=${encodeURIComponent(absoluteUrl)}`);
-      }
-    });
-    
-    $('script[src]').each((i, el) => {
-      const src = $(el).attr('src');
-      if (src && !src.startsWith('http') && !src.includes('googletagmanager')) {
-        const absoluteUrl = new URL(src, baseUrl).toString();
-        $(el).attr('src', `/api?url=${encodeURIComponent(absoluteUrl)}`);
-      }
-    });
-    
-    return $.html();
-  } catch (e) {
-    console.error('Error modifying HTML URLs:', e);
-    return html;
-  }
-}
-
-// Dedicated endpoint for Megacloud embeds
-app.get('/megacloud', async (req, res) => {
-  const { id } = req.query;
+// Special endpoint for Megacloud embeds
+app.get('/embed/:id', async (req, res) => {
+  const { id } = req.params;
+  const { k = 1, autoPlay = 0, oa = 0, asi = 1 } = req.query;
   
-  if (!id) {
-    return res.status(400).json({ error: 'ID is required' });
-  }
-  
-  const embedUrl = `https://megacloud.blog/embed-2/v3/e-1/${id}?k=1&autoPlay=1&oa=0&asi=1`;
+  const embedUrl = `https://megacloud.blog/embed-2/v3/e-1/${id}?k=${k}&autoPlay=${autoPlay}&oa=${oa}&asi=${asi}`;
   
   try {
     const response = await axios.get(embedUrl, {
@@ -322,44 +197,188 @@ app.get('/megacloud', async (req, res) => {
       }
     });
     
-    const html = response.data;
-    const videoData = extractVideoData(html, embedUrl);
+    let html = response.data;
+    html = modifyMegacloudHtml(html, embedUrl);
     
-    // Also look for the actual video sources in the loaded scripts
-    // This would require additional requests to the JS files
-    
-    res.json({
-      success: true,
-      embedId: id,
-      embedUrl: embedUrl,
-      videoData: videoData,
-      note: 'The actual video sources are loaded dynamically via JavaScript. Check the videoData.playerScript for more information.'
-    });
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.send(html);
     
   } catch (error) {
-    res.status(500).json({ 
-      error: 'Failed to fetch Megacloud embed', 
-      message: error.message 
-    });
+    res.status(500).send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>Error</title></head>
+      <body style="background:#1a1a2e; color:white; display:flex; justify-content:center; align-items:center; height:100vh;">
+        <div style="text-align:center;">
+          <h2 style="color:#ff4444;">Failed to load embed</h2>
+          <p>${error.message}</p>
+        </div>
+      </body>
+      </html>
+    `);
   }
 });
+
+// Helper function to modify Megacloud HTML
+function modifyMegacloudHtml(html, baseUrl) {
+  try {
+    const base = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
+    const proxyBase = `/api?url=`;
+    
+    // Add base tag and meta headers
+    html = html.replace('<head>', 
+      '<head>\n' +
+      '<base href="' + base + '">\n' +
+      '<meta http-equiv="Content-Security-Policy" content="default-src * \'unsafe-inline\' \'unsafe-eval\' data: blob:;">\n' +
+      '<meta http-equiv="X-Content-Security-Policy" content="default-src * \'unsafe-inline\' \'unsafe-eval\' data: blob:;">\n'
+    );
+    
+    // Modify script tags
+    html = html.replace(/<script([^>]*) src="([^"]+)"([^>]*)>/gi, (match, before, src, after) => {
+      if (!src.includes('googletagmanager') && !src.includes('cloudflareinsights')) {
+        if (src.startsWith('/')) {
+          const fullUrl = base + src.substring(1);
+          return `<script${before} src="${proxyBase}${encodeURIComponent(fullUrl)}"${after}>`;
+        } else if (!src.startsWith('http')) {
+          const fullUrl = base + src;
+          return `<script${before} src="${proxyBase}${encodeURIComponent(fullUrl)}"${after}>`;
+        }
+      }
+      return match;
+    });
+    
+    // Modify link tags for CSS
+    html = html.replace(/<link([^>]*) href="([^"]+)"([^>]*)>/gi, (match, before, href, after) => {
+      if (href.endsWith('.css')) {
+        if (href.startsWith('/')) {
+          const fullUrl = base + href.substring(1);
+          return `<link${before} href="${proxyBase}${encodeURIComponent(fullUrl)}"${after}>`;
+        } else if (!href.startsWith('http')) {
+          const fullUrl = base + href;
+          return `<link${before} href="${proxyBase}${encodeURIComponent(fullUrl)}"${after}>`;
+        }
+      }
+      return match;
+    });
+    
+    // Add proxy interceptor script
+    const interceptorScript = `
+    <script>
+      // Intercept and proxy resource requests
+      (function() {
+        const originalFetch = window.fetch;
+        const PROXY_URL = '${proxyBase}';
+        
+        window.fetch = function(url, options = {}) {
+          if (typeof url === 'string' && url.startsWith('http') && !url.includes('${base}')) {
+            url = PROXY_URL + encodeURIComponent(url);
+          }
+          return originalFetch.call(this, url, options);
+        };
+        
+        // Proxy XMLHttpRequest
+        const XHR = XMLHttpRequest;
+        window.XMLHttpRequest = function() {
+          const xhr = new XHR();
+          const open = xhr.open;
+          xhr.open = function(method, url, ...args) {
+            if (typeof url === 'string' && url.startsWith('http') && !url.includes('${base}')) {
+              url = PROXY_URL + encodeURIComponent(url);
+            }
+            return open.call(this, method, url, ...args);
+          };
+          return xhr;
+        };
+        
+        // Handle dynamically added scripts
+        const observer = new MutationObserver((mutations) => {
+          mutations.forEach((mutation) => {
+            mutation.addedNodes.forEach((node) => {
+              if (node.tagName === 'SCRIPT' && node.src) {
+                if (node.src.startsWith('http') && !node.src.includes('${base}')) {
+                  node.src = PROXY_URL + encodeURIComponent(node.src);
+                }
+              }
+            });
+          });
+        });
+        
+        observer.observe(document.documentElement, {
+          childList: true,
+          subtree: true
+        });
+        
+        console.log('Proxy interceptor active');
+      })();
+    </script>
+    `;
+    
+    html = html.replace('</head>', interceptorScript + '\n</head>');
+    
+    return html;
+    
+  } catch (e) {
+    console.error('Error modifying HTML:', e);
+    return html;
+  }
+}
+
+// Helper function to modify HTML URLs
+function modifyHtmlUrls(html, baseUrl) {
+  try {
+    const base = baseUrl.substring(0, baseUrl.lastIndexOf('/') + 1);
+    const proxyBase = `/api?url=`;
+    
+    html = html.replace(/(src|href)="([^"]+)"/gi, (match, attr, value) => {
+      if (value.startsWith('http') || value.startsWith('//')) {
+        return match;
+      }
+      if (value.startsWith('/')) {
+        const fullUrl = base + value.substring(1);
+        return `${attr}="${proxyBase}${encodeURIComponent(fullUrl)}"`;
+      } else if (!value.startsWith('#') && !value.startsWith('data:')) {
+        const fullUrl = base + value;
+        return `${attr}="${proxyBase}${encodeURIComponent(fullUrl)}"`;
+      }
+      return match;
+    });
+    
+    return html;
+    
+  } catch (e) {
+    console.error('Error modifying URLs:', e);
+    return html;
+  }
+}
 
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
     status: 'ok', 
     message: 'Proxy is running',
-    endpoints: ['/api', '/megacloud', '/health']
+    endpoints: ['/api', '/embed/:id', '/health']
   });
 });
 
 // Handle 404
 app.use((req, res) => {
-  res.status(404).json({ 
-    error: 'Not found', 
-    message: 'The requested endpoint does not exist',
-    availableEndpoints: ['/api', '/megacloud', '/health']
-  });
+  if (req.headers.accept?.includes('text/html')) {
+    res.status(404).send(`
+      <!DOCTYPE html>
+      <html>
+      <head><title>404 Not Found</title></head>
+      <body style="background:#1a1a2e; color:white; display:flex; justify-content:center; align-items:center; height:100vh;">
+        <div style="text-align:center;">
+          <h2 style="color:#ff4444;">404 - Not Found</h2>
+          <p>The requested endpoint does not exist</p>
+        </div>
+      </body>
+      </html>
+    `);
+  } else {
+    res.status(404).json({ error: 'Not found' });
+  }
 });
 
 module.exports = app;
