@@ -26,15 +26,12 @@ app.get('/proxy', async (req, res) => {
     }
 
     try {
-        // Determine the correct referer
         let targetReferer = referer || 'https://megacloud.tv/';
         const targetUrl = new URL(url);
         
-        // Special handling for cdn.dotstream.buzz (megaplay CDN)
         if (targetUrl.hostname === 'cdn.dotstream.buzz') {
             targetReferer = 'https://megaplay.buzz/';
         }
-        // If referer is just megacloud domain, construct a full embed URL
         else if (targetReferer === 'https://megacloud.tv' || targetReferer === 'https://megacloud.tv/') {
             const urlPath = targetUrl.pathname;
             const videoIdMatch = urlPath.match(/\/([a-f0-9]{64,})\//);
@@ -62,10 +59,6 @@ app.get('/proxy', async (req, res) => {
         const rangeHeader = req.headers['range'];
         if (rangeHeader) headersMap['Range'] = rangeHeader;
 
-        const xRequestedWith = req.headers['x-requested-with'];
-        if (xRequestedWith) headersMap['X-Requested-With'] = xRequestedWith;
-
-        // Fetch the content
         const response = await fetch(url, {
             method: 'GET',
             headers: headersMap,
@@ -76,28 +69,22 @@ app.get('/proxy', async (req, res) => {
             return res.status(response.status).send(`Upstream error ${response.status}`);
         }
 
-        // Copy headers from the response
         const contentType = response.headers.get('content-type') || '';
         
-        // Set response headers
         res.set({
             'Access-Control-Allow-Origin': '*',
-            'X-Proxy-Version': '1.2.1-node',
-            'Cache-Control': response.headers.get('cache-control') || 'no-cache'
+            'X-Proxy-Version': '1.2.1-vercel'
         });
 
-        // Copy relevant headers
-        const headersToCopy = ['content-type', 'content-length', 'content-range', 'accept-ranges'];
+        const headersToCopy = ['content-type', 'content-length', 'content-range', 'accept-ranges', 'cache-control'];
         headersToCopy.forEach(header => {
             const value = response.headers.get(header);
             if (value) res.set(header, value);
         });
 
-        // Remove security headers
         res.removeHeader('content-security-policy');
         res.removeHeader('x-frame-options');
 
-        // HLS manifest rewriting
         if (contentType.includes('mpegurl') || url.includes('.m3u8')) {
             const manifestText = await response.text();
             const basePath = url.substring(0, url.lastIndexOf('/') + 1);
@@ -130,7 +117,6 @@ app.get('/proxy', async (req, res) => {
             return res.send(newLines.join('\n'));
         }
 
-        // For segments or binary data, pipe the response
         response.body.pipe(res);
 
     } catch (error) {
@@ -141,12 +127,15 @@ app.get('/proxy', async (req, res) => {
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-    res.json({ status: 'ok', version: '1.2.1-node' });
+    res.json({ status: 'ok', version: '1.2.1-vercel' });
 });
 
-// Start server
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Proxy server running on http://localhost:${PORT}`);
-    console.log(`- Proxy endpoint: http://localhost:${PORT}/proxy?url=VIDEO_URL&referer=REFERER`);
-    console.log(`- Health check: http://localhost:${PORT}/health`);
-});
+// Export for Vercel
+module.exports = app;
+
+// Start server only if not in Vercel environment
+if (require.main === module) {
+    app.listen(PORT, '0.0.0.0', () => {
+        console.log(`Proxy server running on http://localhost:${PORT}`);
+    });
+}
