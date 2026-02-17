@@ -1,28 +1,9 @@
 {
-  "name": "marc",
-  "version": "1.0.1",
-  "description": "Anime streaming application with Express.js",
-  "main": "index.js",
-  "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
-    "build": "echo 'No build required'",
-    "vercel-build": "echo 'Building for Vercel'"
-  },
+  "name": "megacloud-proxy",
+  "version": "1.0.0",
+  "type": "module",
   "dependencies": {
-    "express": "^4.18.2",
-    "node-fetch": "^2.7.0",
     "axios": "^1.6.0",
-    "cors": "^2.8.5",
-    "cheerio": "^1.2.0"
-  },
-  "devDependencies": {
-    "nodemon": "^3.0.1"
-  },
-  "engines": {
-    "node": ">=24.0.0"
-  },
-  "keywords": ["anime", "streaming", "express", "vercel"],
-  "author": "MarcAnime",
-  "license": "MIT"
+    "express": "^4.18.2"
+  }
 }
