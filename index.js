@@ -19,7 +19,7 @@ app.use((req, res, next) => {
 });
 
 // Serve static files
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'Public')));
 
 // API Base URL
 const API_BASE = 'https://anime-apis-rosy.vercel.app/api';
@@ -38,12 +38,12 @@ async function fetchAPI(endpoint) {
 
 // Home route
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'Public', 'index.html'));
 });
 
 // Watch route
 app.get('/watch', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'watch.html'));
+    res.sendFile(path.join(__dirname, 'Public', 'watch.html'));
 });
 
 // API Routes
