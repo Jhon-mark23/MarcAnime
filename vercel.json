@@ -10,14 +10,14 @@
       "use": "@vercel/static"
     }
   ],
-  "routes": [
+  "rewrites": [
     {
-      "src": "/api/(.*)",
-      "dest": "/api/$1.js"
+      "source": "/api/(.*)",
+      "destination": "/api/$1.js"
     },
     {
-      "src": "/(.*)",
-      "dest": "/public/$1"
+      "source": "/(.*)",
+      "destination": "/public/$1"
     }
   ],
   "headers": [
@@ -35,10 +35,6 @@
         {
           "key": "Access-Control-Allow-Headers",
           "value": "Content-Type, Range, User-Agent, X-Requested-With"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache"
         }
       ]
     }
