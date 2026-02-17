@@ -623,6 +623,20 @@
       <p class="vjs-no-js">Please enable JavaScript</p>
     </video-js>
 
+    <!-- Quality Selector (custom) -->
+    <div class="quality-selector" id="qualitySelector" style="display: none;">
+      <button class="quality-btn" onclick="toggleQualityMenu()">
+        <i class="fas fa-hd"></i> <span id="currentQuality">Auto</span>
+      </button>
+      <div class="quality-menu" id="qualityMenu">
+        <div class="quality-menu-header">
+          <span>Select Quality</span>
+          <button onclick="toggleQualityMenu()"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="quality-options" id="qualityOptions"></div>
+      </div>
+    </div>
+
     <!-- Skip Popup -->
     <div id="skipPopup" class="skip-popup hidden" onclick="skipIntro()">
       <i class="fas fa-forward"></i>
@@ -669,6 +683,10 @@
     </div>
     <div class="episode-title-jp" id="currentEpJpTitle"></div>
     <div id="introInfo"></div>
+    <div id="continueWatching" class="continue-watching hidden">
+      <i class="fas fa-clock"></i> Continue from <span id="continueTime">0:00</span>
+      <button onclick="continueWatching()" class="continue-btn">Resume</button>
+    </div>
   </div>
 
   <div class="section">
@@ -696,6 +714,117 @@
   </div>
 </div>
 
+<!-- Add this CSS for quality selector -->
+<style>
+  .quality-selector {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 100;
+  }
+
+  .quality-btn {
+    background: rgba(0, 0, 0, 0.7);
+    color: white;
+    border: 1px solid #3d63ff;
+    border-radius: 20px;
+    padding: 8px 16px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    backdrop-filter: blur(5px);
+    min-height: 40px;
+  }
+
+  .quality-menu {
+    position: absolute;
+    top: 50px;
+    right: 0;
+    background: #121c2b;
+    border: 1px solid #2e426b;
+    border-radius: 12px;
+    width: 200px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
+    display: none;
+    z-index: 1000;
+  }
+
+  .quality-menu.show {
+    display: block;
+  }
+
+  .quality-menu-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-bottom: 1px solid #2e426b;
+    color: white;
+    font-weight: 600;
+  }
+
+  .quality-menu-header button {
+    background: none;
+    border: none;
+    color: #8aa3cc;
+    font-size: 1.2rem;
+    cursor: pointer;
+    padding: 4px 8px;
+  }
+
+  .quality-options {
+    padding: 8px;
+  }
+
+  .quality-option {
+    padding: 10px 12px;
+    color: #cce1ff;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: 0.2s;
+    font-size: 0.9rem;
+  }
+
+  .quality-option:hover {
+    background: #1a253c;
+  }
+
+  .quality-option.active {
+    background: #3d63ff;
+    color: white;
+  }
+
+  .continue-watching {
+    margin-top: 10px;
+    padding: 10px;
+    background: rgba(61, 99, 255, 0.2);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.9rem;
+    border: 1px solid #3d63ff;
+  }
+
+  .continue-watching.hidden {
+    display: none;
+  }
+
+  .continue-btn {
+    background: #3d63ff;
+    color: white;
+    border: none;
+    border-radius: 20px;
+    padding: 6px 16px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    margin-left: auto;
+  }
+</style>
+
 <!-- Scripts -->
 <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/videojs-contrib-hls@5.15.0/dist/videojs-contrib-hls.min.js"></script>
@@ -720,6 +849,10 @@ const urlEpisodeId = params.get("ep") || "";
 const hlsPlayer = document.getElementById("hls-player");
 const playerFallback = document.getElementById("playerFallback");
 const skipPopup = document.getElementById("skipPopup");
+const qualitySelector = document.getElementById("qualitySelector");
+const qualityMenu = document.getElementById("qualityMenu");
+const qualityOptions = document.getElementById("qualityOptions");
+const currentQualitySpan = document.getElementById("currentQuality");
 
 let episodesList = [];
 let filteredEpisodes = [];
@@ -732,6 +865,9 @@ let introStart = null;
 let introEnd = null;
 let skipTimeout = null;
 let isLoading = false;
+let availableQualities = [];
+let currentQuality = 'auto';
+let playProgress = JSON.parse(localStorage.getItem(`progress_${animeId}`)) || {};
 
 // Initialize video.js player (HLS only)
 function initHlsPlayer() {
@@ -754,16 +890,33 @@ function initHlsPlayer() {
             }
         });
 
-        // Track time for skip detection
+        // Track time for skip detection and progress
         videoPlayer.on('timeupdate', () => {
-            if (introStart && introEnd && videoPlayer.currentTime) {
-                const currentTime = videoPlayer.currentTime();
+            if (!videoPlayer.currentTime) return;
+            
+            const currentTime = videoPlayer.currentTime();
+            const duration = videoPlayer.duration();
+            
+            // Skip detection
+            if (introStart && introEnd) {
                 if (currentTime >= introStart && currentTime <= introStart + 5) {
                     showSkipPopup();
                 }
                 if (currentTime > introEnd) {
                     hideSkipPopup();
                 }
+            }
+            
+            // Save progress every 30 seconds
+            if (currentTime > 0 && duration > 0 && currentTime % 30 < 1) {
+                saveProgress(currentEpIndex, currentTime);
+            }
+        });
+
+        // Save progress on pause
+        videoPlayer.on('pause', () => {
+            if (videoPlayer.currentTime() > 0) {
+                saveProgress(currentEpIndex, videoPlayer.currentTime());
             }
         });
 
@@ -776,7 +929,7 @@ function initHlsPlayer() {
             }
         });
 
-        // Error handling - NO AUTO SWITCH, just show fallback
+        // Error handling
         videoPlayer.on('error', () => {
             console.error('Video.js error:', videoPlayer.error());
             if (!isLoading) {
@@ -788,14 +941,143 @@ function initHlsPlayer() {
         videoPlayer.on('loadedmetadata', () => {
             playerFallback.classList.add('hidden');
             isLoading = false;
+            
+            // Extract available qualities from HLS manifest
+            detectQualities();
+            
+            // Check for continue watching
+            checkContinueWatching();
         });
 
-        // Waiting for data
-        videoPlayer.on('waiting', () => {
-            // Don't show fallback on buffering
+        // Quality change handler
+        videoPlayer.on('qualitychange', (event, quality) => {
+            currentQuality = quality.height || 'auto';
+            currentQualitySpan.textContent = formatQualityName(currentQuality);
         });
     }
     return videoPlayer;
+}
+
+// Save watch progress
+function saveProgress(episodeIndex, time) {
+    if (!episodesList[episodeIndex]) return;
+    
+    const ep = episodesList[episodeIndex];
+    const epId = ep.data_id || ep.id;
+    
+    playProgress[epId] = {
+        time: Math.floor(time),
+        episode_no: ep.episode_no,
+        timestamp: Date.now()
+    };
+    
+    localStorage.setItem(`progress_${animeId}`, JSON.stringify(playProgress));
+}
+
+// Check if current episode has saved progress
+function checkContinueWatching() {
+    const currentEp = episodesList[currentEpIndex];
+    if (!currentEp) return;
+    
+    const epId = currentEp.data_id || currentEp.id;
+    const progress = playProgress[epId];
+    
+    const continueDiv = document.getElementById('continueWatching');
+    
+    if (progress && progress.time > 10 && videoPlayer.duration() && progress.time < videoPlayer.duration() - 10) {
+        const minutes = Math.floor(progress.time / 60);
+        const seconds = progress.time % 60;
+        document.getElementById('continueTime').textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+        continueDiv.classList.remove('hidden');
+    } else {
+        continueDiv.classList.add('hidden');
+    }
+}
+
+// Continue watching from saved position
+function continueWatching() {
+    const currentEp = episodesList[currentEpIndex];
+    if (!currentEp) return;
+    
+    const epId = currentEp.data_id || currentEp.id;
+    const progress = playProgress[epId];
+    
+    if (progress && videoPlayer) {
+        videoPlayer.currentTime(progress.time);
+        document.getElementById('continueWatching').classList.add('hidden');
+    }
+}
+
+// Detect qualities from HLS stream
+function detectQualities() {
+    if (!videoPlayer || !videoPlayer.tech_) return;
+    
+    try {
+        const hls = videoPlayer.tech_.hls;
+        if (hls && hls.levels && hls.levels.length > 0) {
+            availableQualities = hls.levels.map(level => ({
+                height: level.height,
+                bitrate: level.bitrate,
+                label: level.height ? `${level.height}p` : 'Auto'
+            }));
+            
+            // Add auto option
+            availableQualities.unshift({ height: 'auto', label: 'Auto' });
+            
+            renderQualityOptions();
+            qualitySelector.style.display = 'block';
+        }
+    } catch (e) {
+        console.log('Could not detect qualities:', e);
+    }
+}
+
+// Render quality options
+function renderQualityOptions() {
+    qualityOptions.innerHTML = availableQualities.map(q => `
+        <div class="quality-option ${currentQuality === q.height ? 'active' : ''}" 
+             onclick="setQuality('${q.height}')">
+            ${q.label}
+        </div>
+    `).join('');
+}
+
+// Set video quality
+function setQuality(height) {
+    if (!videoPlayer || !videoPlayer.tech_) return;
+    
+    try {
+        const hls = videoPlayer.tech_.hls;
+        if (hls && hls.levels) {
+            if (height === 'auto') {
+                hls.currentLevel = -1; // Auto
+                currentQuality = 'auto';
+            } else {
+                const levelIndex = hls.levels.findIndex(l => l.height === parseInt(height));
+                if (levelIndex !== -1) {
+                    hls.currentLevel = levelIndex;
+                    currentQuality = height;
+                }
+            }
+            
+            currentQualitySpan.textContent = formatQualityName(currentQuality);
+            renderQualityOptions();
+            toggleQualityMenu();
+        }
+    } catch (e) {
+        console.log('Could not set quality:', e);
+    }
+}
+
+// Format quality name for display
+function formatQualityName(quality) {
+    if (quality === 'auto') return 'Auto';
+    return quality + 'p';
+}
+
+// Toggle quality menu
+function toggleQualityMenu() {
+    qualityMenu.classList.toggle('show');
 }
 
 // Skip popup functions
@@ -846,7 +1128,7 @@ function isWatched(episodeNo) {
     return watchHistory.includes(episodeNo);
 }
 
-// Load stream with HLS only - NO AUTO SWITCHING
+// Load stream with HLS only
 async function loadStream(epId, server = currentServer, type = currentType) {
     if (isLoading) return;
     
@@ -892,7 +1174,7 @@ async function loadStream(epId, server = currentServer, type = currentType) {
             initHlsPlayer();
             videoPlayer.src({ type: 'application/x-mpegURL', src: proxyUrl });
             
-            // Add subtitles if available
+            // Add subtitles with English as default
             if (stream.tracks && stream.tracks.length > 0) {
                 // Remove old tracks
                 if (videoPlayer.remoteTextTracks) {
@@ -902,21 +1184,30 @@ async function loadStream(epId, server = currentServer, type = currentType) {
                     }
                 }
                 
-                // Add new tracks
+                // Find English subtitles
+                const englishTracks = stream.tracks.filter(track => 
+                    (track.language === 'en' || track.label?.toLowerCase().includes('english')) &&
+                    (track.kind === 'captions' || track.kind === 'subtitles')
+                );
+                
+                // Add all tracks but set English as default
                 stream.tracks.forEach(track => {
                     if (track.kind === 'captions' || track.kind === 'subtitles') {
+                        const isEnglish = englishTracks.includes(track);
                         videoPlayer.addRemoteTextTrack({
                             kind: 'captions',
-                            label: track.label || 'English',
+                            label: track.label || (track.language === 'en' ? 'English' : track.language),
                             language: track.language || 'en',
                             src: track.file,
-                            default: track.default || false
+                            default: isEnglish // Auto-select English
                         }, false);
                     }
                 });
+                
+                // Log which tracks were added
+                console.log('Added subtitles:', stream.tracks.length, 'English tracks:', englishTracks.length);
             }
             
-            // Don't autoplay to prevent issues
             videoPlayer.play().catch(e => {
                 console.log('Autoplay prevented:', e);
             });
@@ -977,10 +1268,16 @@ async function loadEpisodes() {
         document.getElementById("episode-count").textContent = `${episodesList.length} total`;
         document.getElementById("anime-title").textContent = formatTitle(animeId);
 
+        // Check for last watched episode
+        const lastWatched = getLastWatchedEpisode();
+        
         if (urlEpisodeId) {
             currentEpIndex = episodesList.findIndex(ep => ep.id === urlEpisodeId || ep.data_id === urlEpisodeId);
+        } else if (lastWatched !== null) {
+            currentEpIndex = lastWatched;
         }
-        if (currentEpIndex === -1 || !urlEpisodeId) currentEpIndex = 0;
+        
+        if (currentEpIndex === -1) currentEpIndex = 0;
 
         renderEpisodes();
 
@@ -1011,6 +1308,26 @@ async function loadEpisodes() {
             </div>
         `;
     }
+}
+
+// Get last watched episode from progress
+function getLastWatchedEpisode() {
+    const progresses = Object.entries(playProgress);
+    if (progresses.length === 0) return null;
+    
+    // Find most recent
+    let latest = null;
+    let latestIndex = null;
+    
+    progresses.forEach(([epId, data]) => {
+        const index = episodesList.findIndex(ep => (ep.data_id || ep.id) === epId);
+        if (index !== -1 && (!latest || data.timestamp > latest.timestamp)) {
+            latest = data;
+            latestIndex = index;
+        }
+    });
+    
+    return latestIndex;
 }
 
 function handleSearch(e) {
@@ -1046,12 +1363,14 @@ function renderEpisodes() {
         const isActive = originalIndex === currentEpIndex;
         const fillerClass = ep.filler ? 'filler' : '';
         const watchedClass = isWatched(ep.episode_no) ? 'watched' : '';
+        const hasProgress = playProgress[epId] ? 'has-progress' : '';
         
         return `
-            <button class="ep-btn ${fillerClass} ${watchedClass} ${isActive ? 'active' : ''}" 
+            <button class="ep-btn ${fillerClass} ${watchedClass} ${hasProgress} ${isActive ? 'active' : ''}" 
                     onclick="changeEpisode(${originalIndex})"
                     title="${ep.title || ''}">
                 ${ep.episode_no}
+                ${playProgress[epId] ? '<span class="progress-dot"></span>' : ''}
             </button>
         `;
     }).join("");
@@ -1067,6 +1386,7 @@ function updateAnimeInfoContainer(ep) {
     document.getElementById("ep-title").textContent = `Episode ${ep.episode_no}`;
     
     markAsWatched(ep.episode_no);
+    checkContinueWatching();
 }
 
 function changeEpisode(index) {
@@ -1084,6 +1404,9 @@ function changeEpisode(index) {
     document.getElementById('clearSearch').classList.remove('visible');
     filteredEpisodes = [...episodesList];
     hideSkipPopup();
+    
+    // Hide quality menu when changing episode
+    qualityMenu.classList.remove('show');
 }
 
 function updateNavButtons() {
@@ -1102,10 +1425,20 @@ document.getElementById("nextEp").onclick = () => {
     if (currentEpIndex < episodesList.length - 1) changeEpisode(currentEpIndex + 1);
 };
 
+// Close quality menu when clicking outside
+document.addEventListener('click', (e) => {
+    if (!qualitySelector.contains(e.target) && qualityMenu.classList.contains('show')) {
+        qualityMenu.classList.remove('show');
+    }
+});
+
 // Make functions global
 window.retryCurrentServer = retryCurrentServer;
 window.skipIntro = skipIntro;
 window.loadStream = loadStream;
+window.toggleQualityMenu = toggleQualityMenu;
+window.setQuality = setQuality;
+window.continueWatching = continueWatching;
 
 // Initialize
 document.addEventListener('DOMContentLoaded', () => {
