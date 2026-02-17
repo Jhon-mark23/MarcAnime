@@ -1,13 +1,13 @@
 {
   "version": 2,
-  "name": "marcanime",
+  "name": "marc-anime",
   "builds": [
     {
       "src": "index.js",
       "use": "@vercel/node"
     },
     {
-      "src": "public/**",
+      "src": "Public/**",
       "use": "@vercel/static"
     }
   ],
@@ -22,41 +22,15 @@
     },
     {
       "src": "/watch",
-      "dest": "/public/watch.html"
+      "dest": "/Public/watch.html"
     },
     {
       "src": "/",
-      "dest": "/public/index.html"
+      "dest": "/Public/index.html"
     },
     {
       "src": "/(.*)",
-      "dest": "/public/$1"
+      "dest": "/Public/$1"
     }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
-        },
-        {
-          "key": "Content-Security-Policy",
-          "value": "frame-ancestors 'self' https://*.vercel.app http://localhost:*"
-        },
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        }
-      ]
-    }
-  ],
-  "env": {
-    "NODE_ENV": "production"
-  }
+  ]
 }
