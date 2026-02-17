@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proxy Iframe Player - Test</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 1.1rem;
+            margin-bottom: 20px;
+        }
+
+        .proxy-info {
+            background: #f0f4ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .proxy-url {
+            background: #fff;
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #e0e0e0;
+            font-family: monospace;
+            font-size: 1.1rem;
+            word-break: break-all;
+            margin: 10px 0;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            min-width: 300px;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        button {
+            padding: 15px 30px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, background 0.2s;
+        }
+
+        button:hover {
+            background: #5a6fd6;
+            transform: translateY(-2px);
+        }
+
+        button.secondary {
+            background: #48bb78;
+        }
+
+        button.secondary:hover {
+            background: #38a169;
+        }
+
+        button.danger {
+            background: #f56565;
+        }
+
+        button.danger:hover {
+            background: #e53e3e;
+        }
+
+        .examples {
+            margin: 20px 0;
+        }
+
+        .example-badge {
+            display: inline-block;
+            background: #e2e8f0;
+            padding: 8px 15px;
+            border-radius: 20px;
+            margin: 5px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .example-badge:hover {
+            background: #cbd5e0;
+        }
+
+        .player-container {
+            background: #1a1a1a;
+            border-radius: 20px;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            margin-top: 30px;
+        }
+
+        .player-header {
+            background: #2d2d2d;
+            padding: 15px 20px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .player-title {
+            font-weight: 600;
+            word-break: break-all;
+        }
+
+        .player-controls {
+            display: flex;
+            gap: 10px;
+        }
+
+        .player-controls button {
+            padding: 8px 15px;
+            font-size: 0.9rem;
+        }
+
+        .iframe-wrapper {
+            position: relative;
+            width: 100%;
+            padding-top: 56.25%; /* 16:9 Aspect Ratio */
+            background: #000;
+        }
+
+        iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .status.success {
+            background: #c6f6d5;
+            color: #22543d;
+            display: block;
+        }
+
+        .status.error {
+            background: #fed7d7;
+            color: #742a2a;
+            display: block;
+        }
+
+        .status.info {
+            background: #bee3f8;
+            color: #2a4365;
+            display: block;
+        }
+
+        .history {
+            background: white;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .history-item:hover {
+            background: #f7fafc;
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                padding: 20px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .input-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎥 Proxy Iframe Player</h1>
+            <p class="subtitle">Test your Cloudflare Worker proxy with any URL</p>
+            
+            <div class="proxy-info">
+                <strong>🔗 Your Proxy URL:</strong>
+                <div class="proxy-url" id="proxyUrl">https://rcvproxy.mark-projects.site/</div>
+                <p style="margin-top: 10px; color: #555;">
+                    <strong>Format:</strong> https://rcvproxy.mark-projects.site/?url=ENCODED_URL
+                </p>
+            </div>
+
+            <div class="input-group">
+                <input type="text" id="targetUrl" placeholder="Enter URL to proxy (e.g., https://example.com)">
+                <button onclick="loadInIframe()">📺 Load in Player</button>
+                <button class="secondary" onclick="encodeAndCopy()">📋 Encode & Copy</button>
+            </div>
+
+            <div class="examples">
+                <strong>📌 Examples:</strong>
+                <span class="example-badge" onclick="setExample('https://example.com')">example.com</span>
+                <span class="example-badge" onclick="setExample('https://www.youtube.com/embed/dQw4w9WgXcQ')">YouTube Embed</span>
+                <span class="example-badge" onclick="setExample('https://player.vimeo.com/video/76979871')">Vimeo</span>
+                <span class="example-badge" onclick="setExample('https://www.dailymotion.com/embed/video/x8s3j7')">Dailymotion</span>
+                <span class="example-badge" onclick="setExample('https://gogoanime.cl/')">Gogoanime</span>
+                <span class="example-badge" onclick="setExample('https://rapid-cloud.co/embed-2/v2/e-1/aFPaT3kppuJV?k=1')">RapidCloud</span>
+            </div>
+
+            <div id="status" class="status"></div>
+        </div>
+
+        <div class="player-container" id="playerContainer" style="display: none;">
+            <div class="player-header">
+                <span class="player-title" id="currentUrl">No URL loaded</span>
+                <div class="player-controls">
+                    <button class="danger" onclick="reloadIframe()">🔄 Reload</button>
+                    <button class="danger" onclick="closePlayer()">✖ Close</button>
+                </div>
+            </div>
+            <div class="iframe-wrapper">
+                <iframe id="proxyIframe" sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-presentation allow-top-navigation" allowfullscreen></iframe>
+            </div>
+        </div>
+
+        <div class="history" id="history">
+            <h3 style="margin-bottom: 15px; color: #333;">📜 History</h3>
+            <div id="historyList">
+                <p style="color: #999; text-align: center;">No history yet</p>
+            </div>
+            <button style="width: 100%; margin-top: 10px;" onclick="clearHistory()">Clear History</button>
+        </div>
+    </div>
+
+    <script>
+        const PROXY_BASE = 'https://rcvproxy.mark-projects.site/';
+        let history = JSON.parse(localStorage.getItem('proxyHistory')) || [];
+
+        function encodeUrl(url) {
+            return encodeURIComponent(url);
+        }
+
+        function buildProxyUrl(targetUrl) {
+            return `${PROXY_BASE}?url=${encodeUrl(targetUrl)}`;
+        }
+
+        function showStatus(message, type) {
+            const statusEl = document.getElementById('status');
+            statusEl.textContent = message;
+            statusEl.className = `status ${type}`;
+            setTimeout(() => {
+                statusEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function setExample(url) {
+            document.getElementById('targetUrl').value = url;
+        }
+
+        function encodeAndCopy() {
+            const url = document.getElementById('targetUrl').value;
+            if (!url) {
+                showStatus('Please enter a URL first', 'error');
+                return;
+            }
+            
+            const encoded = encodeUrl(url);
+            const proxyUrl = buildProxyUrl(url);
+            
+            navigator.clipboard.writeText(proxyUrl).then(() => {
+                showStatus('✅ Proxy URL copied to clipboard!', 'success');
+            }).catch(() => {
+                showStatus('❌ Failed to copy', 'error');
+            });
+        }
+
+        function addToHistory(url, proxyUrl) {
+            const entry = {
+                url: url,
+                proxyUrl: proxyUrl,
+                timestamp: new Date().toLocaleString()
+            };
+            
+            history.unshift(entry);
+            if (history.length > 10) history.pop(); // Keep last 10
+            localStorage.setItem('proxyHistory', JSON.stringify(history));
+            renderHistory();
+        }
+
+        function renderHistory() {
+            const historyEl = document.getElementById('historyList');
+            
+            if (history.length === 0) {
+                historyEl.innerHTML = '<p style="color: #999; text-align: center;">No history yet</p>';
+                return;
+            }
+            
+            historyEl.innerHTML = history.map(item => `
+                <div class="history-item" onclick="loadFromHistory('${item.url.replace(/'/g, "\\'")}')">
+                    <div style="font-weight: 600;">${item.url.substring(0, 50)}${item.url.length > 50 ? '...' : ''}</div>
+                    <div style="font-size: 0.8rem; color: #999;">${item.timestamp}</div>
+                </div>
+            `).join('');
+        }
+
+        function loadFromHistory(url) {
+            document.getElementById('targetUrl').value = url;
+            loadInIframe();
+        }
+
+        function clearHistory() {
+            history = [];
+            localStorage.removeItem('proxyHistory');
+            renderHistory();
+            showStatus('History cleared', 'info');
+        }
+
+        function loadInIframe() {
+            const targetUrl = document.getElementById('targetUrl').value.trim();
+            
+            if (!targetUrl) {
+                showStatus('Please enter a URL', 'error');
+                return;
+            }
+
+            // Validate URL
+            try {
+                new URL(targetUrl);
+            } catch (e) {
+                showStatus('Invalid URL. Please include http:// or https://', 'error');
+                return;
+            }
+
+            const proxyUrl = buildProxyUrl(targetUrl);
+            
+            // Update iframe
+            const iframe = document.getElementById('proxyIframe');
+            iframe.src = proxyUrl;
+            
+            // Show player container
+            document.getElementById('playerContainer').style.display = 'block';
+            document.getElementById('currentUrl').textContent = targetUrl;
+            
+            // Add to history
+            addToHistory(targetUrl, proxyUrl);
+            
+            showStatus('✅ Loading URL through proxy...', 'success');
+        }
+
+        function reloadIframe() {
+            const iframe = document.getElementById('proxyIframe');
+            const currentSrc = iframe.src;
+            if (currentSrc) {
+                iframe.src = 'about:blank';
+                setTimeout(() => {
+                    iframe.src = currentSrc;
+                }, 100);
+                showStatus('🔄 Reloading...', 'info');
+            }
+        }
+
+        function closePlayer() {
+            document.getElementById('playerContainer').style.display = 'none';
+            document.getElementById('proxyIframe').src = 'about:blank';
+        }
+
+        // Handle URL parameter on load
+        window.addEventListener('load', () => {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlParam = urlParams.get('url');
+            
+            if (urlParam) {
+                try {
+                    const decodedUrl = decodeURIComponent(urlParam);
+                    document.getElementById('targetUrl').value = decodedUrl;
+                    loadInIframe();
+                } catch (e) {
+                    console.error('Failed to decode URL parameter:', e);
+                }
+            }
+            
+            renderHistory();
+        });
+
+        // Keyboard shortcut: Enter to load
+        document.getElementById('targetUrl').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                loadInIframe();
+            }
+        });
+    </script>
+</body>
+</html>
