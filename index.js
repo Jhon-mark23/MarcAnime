@@ -8,15 +8,15 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve static files from the 'public' directory
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'Public')));
 
 // Routes
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    res.sendFile(path.join(__dirname, 'Public', 'index.html'));
 });
 
 app.get('/watch', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'watch.html'));
+    res.sendFile(path.join(__dirname, 'Public', 'watch.html'));
 });
 
 // API Proxy route to avoid CORS issues
